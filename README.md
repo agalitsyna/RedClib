@@ -9,8 +9,8 @@ The manuscript is currently under preparation and after its release you can repr
 
 ## System requirements
 
-You will need ... of free space to download raw datasets from GEO, including Red-C and RNA-Seq datasets.
-Keep in mind that in our pipeline we store intermediary processing results, so that you might need up to ... of memory
+You will need (updated upon release) of free space to download raw datasets from GEO, including Red-C and RNA-Seq datasets.
+Keep in mind that in our pipeline we store intermediary processing results, so that you might need up to (updated upon release) of memory
 to reproduce the pipeline for all datasets.
 
 The code is adapted for Linux systems and bash shell. We recommend using conda for requirements management.
@@ -20,10 +20,11 @@ The code is adapted for Linux systems and bash shell. We recommend using conda f
 1. After conda installation and activation run:
 
 ```bash
-conda create --name RedC python=3.5
+conda create --name RedC python=3.7 numpy h5py pandas
 conda activate RedC
-conda install -c anaconda git
-conda install -c bioconda hisat2
+conda install -c anaconda git pip cython 
+conda install -c bioconda hisat2 fastuniq pyfaidx
+pip install https://bitbucket.org/mirnylab/mirnylib/get/tip.tar.gz
 conda install -c gusdunn geoparse    # For data download with GEOparse; skip if not needed
 conda install -c bioconda sra-tools  # For data download with GEOparse; skip if not needed
 ```
@@ -77,6 +78,22 @@ ls data/fastq
     K562_rep2_RNASeq.fastq.gz
 ```
 
+Note that some elements of code use file prefix name to determine the pre-defined read length in fastq files (e.g. 02_run_analysis.py), so make sure to use the mentioned files and names, or you need to modify some elements of scrits. 
+
+
+For a test run you can use sample dataset provided with the library: 
+
+```bash
+ls data/fastq/sample*
+    sample_R1.fastq.gz
+    sample_R2.fastq.gz
+```
+
+```bash
+bash processing_test.sh
+```
+
+
 ## Processing steps description
 
 ### 00_download_GEO.py
@@ -93,10 +110,12 @@ python 00_download_GEO.py GSE... any@email.com
 
 RedClib uses custom implementation of [Rabin-Karp algorithm](https://ieeexplore.ieee.org/document/5390135/) for DNA
 hashing and matching adapter, bridge and reverse complement sequences. The implementation is in C, thus first you need
-to compile the binaries with gcc.
+to compile the binaries with gcc. 01_compile.sh will do that and install compiled binaries to ./data/bin/ folder.
 
 RedClib uses hisat2 for RNA and DNA parts mapping to hg19 reference genome. 01_compile.sh will download the
- reference genome and run hisat2-build to build hisat2 index.
+ reference genome and run hisat2-build to build hisat2 index (will be located in ./data/genome/hisat2 folder).
+ 
+Trimmomatic can be installed with conda, but we prefer to download the compiled source from the [Trimmomatic website](http://www.usadellab.org), it will be installed to .data/bin/ folder as well. 
 
 ### 02_run_analysis.py
 
@@ -107,7 +126,9 @@ python 02_run_analysis.py K562_rep1_wo-ligase
 ```
 
 This command takes FASTQ forward and reverse reads for Red-C and produces a set of intermediary text files.
-It prints extended log files with information about suces of each processing step.
+It prints extended log files with information about success of each processing step.
+
+Mapping is done in parallel (3 threads). Feel free to modify this parameter inside 02_run_analysis.py (nthreads).
 
 ### 03_collect_hdf5.py
 

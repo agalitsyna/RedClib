@@ -8,7 +8,8 @@ lengths_dict = {'HeLa_M': 151,
  'K562_rep1_wo-ligase': 125,
  'K562_rep1': 75,
  'K562_rep1_rnase': 80,
- 'K562_rep2': 75}
+ 'K562_rep2': 75, 
+ 'sample': 151}
 
 from sys import argv
 prefix = argv[1]
@@ -18,7 +19,9 @@ formatting_dct = {'prefix': prefix}
 from RedClib import *
 
 import os
-PATH_ABSOLUTE = os.path.realpath(__file__)
+PATH_ABSOLUTE = os.path.dirname(os.path.realpath(__file__))
+
+logging.debug("Working directory: {}".format(PATH_ABSOLUTE))
 
 PATH_FASTQ = os.path.join(PATH_ABSOLUTE, 'data/fastq/')
 PATH_TABLE = os.path.join(PATH_ABSOLUTE, 'data/tables/')
@@ -46,14 +49,20 @@ outfile1_fastuniq    = PATH_TABLE + '{prefix}.R1.50bp.fastq'.format(**formatting
 outfile2_fastuniq    = PATH_TABLE + '{prefix}.R2.50bp.fastq'.format(**formatting_dct)
 outfile_fastuniq_idx = PATH_TABLE + '{prefix}.unique_idx.txt'.format(**formatting_dct)
 
-a.run_fastuniq(file_fastq, outfile1_fastuniq, outfile2_fastuniq, outfile_fastuniq_idx, length=50)
+a.run_fastuniq(file_fastq, outfile1_fastuniq, outfile2_fastuniq, outfile_fastuniq_idx, 
+               length=50, 
+               fastuniq_binary="fastuniq") # Running the system version of fastuniq installed by conda
 
 file1_trim = PATH_TABLE + '{prefix}.forward.trimmomatic_output.fastq'.format(**formatting_dct)
 file2_trim = PATH_TABLE + '{prefix}.reverse.trimmomatic_output.fastq'.format(**formatting_dct)
 file_trim = PATH_TABLE + '{prefix}.trimtable.txt'.format(**formatting_dct)
 
 a.run_trimmomatic(infile1_fastq, infile2_fastq, file1_trim, file2_trim,
-                  window=5, qual_th=26, minlen=0)
+                  window=5, 
+                  qual_th=26, 
+                  minlen=0, 
+                  trimmomatic_path=os.path.join(PATH_ABSOLUTE, "./bin/Trimmomatic-0.39/trimmomatic-0.39.jar") # Running version downloaded and installed by 01_compile.sh
+                 )
 a.prepare_TRIMOUT(file1_trim, file2_trim, file_trim, prefix, 'len15th26w5', file_fastq)
 
 # Adaptors mapping

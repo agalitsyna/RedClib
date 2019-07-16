@@ -6,8 +6,12 @@ import h5py
 prefix = argv[1]
 formatting_dct = {'prefix': prefix}
 
-PATH_ABSOLUTE = os.path.realpath(__file__)
+PATH_ABSOLUTE = os.path.dirname(os.path.realpath(__file__))
 PATH_OUT = os.path.join(PATH_ABSOLUTE, "data/out/")
+PATH_OUT1 = os.path.join(PATH_ABSOLUTE, "data/results/")
+
+if not os.path.isdir(PATH_OUT1):
+    os.mkdir(PATH_OUT1)
 
 filename = os.path.join(PATH_OUT, "table_{prefix}.hdf5".format(**formatting_dct))
 
@@ -84,13 +88,14 @@ filt7b = ( (outfile['rna_strand'][()]!=outfile['rna1_strand'][()]) ).astype(bool
 filt8a = (outfile['RNADNASamePos'][()]==0).astype(bool)
 
 filt8b = ((outfile['rna_nla_failed'][()]==0) & \
-             (outfile['rna_mme_failed'][()]==0) & \
-             (outfile['rna1_nla_failed'][()]==0) ).astype(bool)
+    (outfile['rna_mme_failed'][()]==0) & \
+    (outfile['rna1_nla_failed'][()]==0) ).astype(bool)
 
 # Filter 9: RNA1 and RNA distance is small enough
 filt9 = ( np.abs(outfile['rna_bgn'][()]-outfile['rna1_bgn'][()])<1e4 ).astype(bool)
 
 
+# Sequential filteres applied to initial set of reads:
 V6  = np.sum(filt1&filt2&filt3&filt4&filt5&filt6)
 V6a = np.sum(filt1&filt2&filt3&filt4&filt5&filt6a)
 
@@ -103,10 +108,9 @@ V8b = np.sum(filt1&filt2&filt3&filt4&filt5&filt6&filt6a&filt7&filt7a&filt7b&filt
 V9 = np.sum(filt1&filt2&filt3&filt4&filt5&filt6&filt6a&filt7&filt7a&filt7b&filt8a&filt8b&filt9)
 
 
-subsets = (V0, V1, V2, V3, V4, V5, V35, V24, V25, V6, V6a, V7, V7a, V7b, V8a, V8b, V9)
+subsets = [V0, V1, V2, V3, V4, V5, V35, V24, V25, V6, V6a, V7, V7a, V7b, V8a, V8b, V9]
 
-print('\t'.join([str(x) for x in [">", "new", prefix, *subsets]]))
-
+print('\t'.join([str(x) for x in [">", "new", prefix]+subsets]))
 
 
 mask = filt1&filt2&filt3&filt4&filt5&filt6&filt6a&filt7&filt7a&filt7b&filt8a&filt8b&filt9
@@ -121,7 +125,7 @@ columns_names = """id 3rna_chr 3rna_bgn 3rna_end 3rna_strand 3rna_cigar
 dna_chr dna_bgn dna_end dna_strand dna_cigar""".split()
 dct = {k:outfile[k][()][idx] for k in columns}
 
-output = "../DATA1/RESULTS/{prefix}_passed.tsv".format(**formatting_dct)
+output = os.path.join(PATH_ABSOLUTE, "data/results/{prefix}_passed.tsv".format(**formatting_dct))
 
 def strand(x):
     if x:

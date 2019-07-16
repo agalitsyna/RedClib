@@ -157,7 +157,7 @@ class RedCprocessing:
         is_err, cmd_runtime = self.run_and_check_command(command)
 
         if is_err:
-            logging.error("Preparing FASTQ files. Runtime: {}. Filenames:\n\t{}\n\t{}".format(cmd_runtime, file1, file2))
+            logging.debug("Preparing FASTQ files. Runtime: {}. Filenames:\n\t{}\n\t{}".format(cmd_runtime, file1, file2))
         else:
             logging.debug("Preparing FASTQ files finished successfully. Runtime: {}".format(cmd_runtime))
 
@@ -179,7 +179,7 @@ class RedCprocessing:
         cmd_runtime = str(timedelta(seconds=cmd_end_time - cmd_bgn_time))
 
         if is_err1 or is_err2:
-            logging.error("Subsequences retrieval failed. Runtime: {}. Filenames:\n\t{}\n\t{}".format(cmd_runtime, infile1, outfile_R1))
+            logging.debug("Subsequences retrieval failed. Runtime: {}. Filenames:\n\t{}\n\t{}".format(cmd_runtime, infile1, outfile_R1))
         else:
             logging.debug("Subsequences retrieval finished successfully. Runtime: {}".format(cmd_runtime))
 
@@ -238,13 +238,13 @@ class RedCprocessing:
                     os.remove(formatting_dct[k])
 
         if is_err1 or is_err2:
-            logging.error("Fastuniq run successfully. Runtime: {}. Filenames:\n\t{}\n\t{}".format(cmd_runtime, infile_fastq, outfile_idx))
+            logging.debug("Fastuniq run with stderr output. Stderr:\n\t{}\n\t{} \n\tRuntime: {}. Filenames:\n\t{}\n\t{}".format(is_err1, is_err2, cmd_runtime, infile_fastq, outfile_idx))
         else:
-            logging.debug("Preparing FASTQ files for upload finished successfully. Runtime: {}".format(cmd_runtime))
+            logging.debug("Fastuniq run successfully. Runtime: {}. Filenames:\n\t{}\n\t{}".format(cmd_runtime, infile_fastq, outfile_idx))
 
 
     def run_trimmomatic(self, file1, file2, outfile1, outfile2,
-                        trimmomatic_path="/mnt/lustre/tools/trimmomatic/trimmomatic-0.30.jar",
+                        trimmomatic_path="./bin/Trimmomatic-0.39/trimmomatic-0.39.jar",
                         window=5, qual_th=26, minlen=15):
         """
         Run trimmomatic (paired mode) for two files with reads separately
@@ -267,12 +267,12 @@ class RedCprocessing:
         is_err, cmd_runtime = self.run_and_check_command(command)
 
         if is_err:
-            logging.error(
-                "Running trimmomatic failed for file: {} \n Possible error: \n{})"
-                "Runtime: {}.".format(file1, is_err, cmd_runtime))
+            logging.debug(
+                "Trimmomatic run with stderr output for file: {} \n Possible error: \n\t{}\n\t"
+                "Trimmomatic runtime: {}.".format(file1, is_err, cmd_runtime))
         else:
             logging.debug("Running trimmomatic succeeded for file: {} (outfile: {})"
-                "Runtime: {}.".format(file1, outfile1, cmd_runtime))
+                "Trimmomatic runtime: {}.".format(file1, outfile1, cmd_runtime))
 
 
     #############################################
@@ -308,7 +308,7 @@ class RedCprocessing:
                 logging.error("Deletion of intermediary file {} failed.".format(f))
 
         if is_err1 or is_err2:
-            logging.error("Preparing FASTQ files for upload failed. Runtime: {}. Filenames: {} {}".format(cmd_runtime1+cmd_runtime2, file1, file2))
+            logging.error("Preparing FASTQ files for upload run with stderr: \n\t{}\n\t{}\n\t Runtime: {}. Filenames: {} {}".format(is_err1, is_err2, cmd_runtime1+cmd_runtime2, file1, file2))
         else:
             logging.debug("Preparing FASTQ files for upload finished successfully. Runtime: {} {} Total: {}".format(cmd_runtime1 ,cmd_runtime2, cmd_runtime1+cmd_runtime2))
 

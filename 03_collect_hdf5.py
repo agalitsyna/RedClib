@@ -14,7 +14,7 @@ from sys import argv
 prefix = argv[1]
 formatting_dct = {'prefix': prefix}
 
-PATH_ABSOLUTE = os.path.realpath(__file__)
+PATH_ABSOLUTE = os.path.dirname(os.path.realpath(__file__))
 PATH_OUT = os.path.join(PATH_ABSOLUTE, "data/out/")
 
 if not os.path.isdir(PATH_OUT):
@@ -24,7 +24,15 @@ filename = os.path.join(PATH_OUT, "table_{prefix}.hdf5".format(**formatting_dct)
 
 try:
     outfile = h5py.File(filename, "w")
-
+    
+except Exception as e:
+    import os
+    os.remove(filename)
+    logging.error(e)
+    exit()
+    
+try:
+    
     def update_hdf5(file_hdf5, dct, dtype=int):
         """dct might be either dictionary or a single data type"""
 
@@ -36,7 +44,7 @@ try:
             file_hdf5.create_dataset(k, data=np.array(dct[k], dtype=dtype[k]), chunks=True)
 
 
-    table_file = "../DATA1/TABLES/{prefix}.fastq.txt".format(**formatting_dct)
+    table_file = os.path.join(PATH_ABSOLUTE, "data/tables/{prefix}.fastq.txt".format(**formatting_dct))
     raw_file = raw_read_file(table_file, 
                              [1, 3, 5, 3, 5], 
                              ['id', 'seqR1_len', 'seqR2_len', 'seqR1', 'seqR2'], 
@@ -44,7 +52,7 @@ try:
 
     update_hdf5(outfile, raw_file, {'id':'S100', 'seqR1':'S250', 'seqR2':'S250', 'seqR1_len':int, 'seqR2_len':int})
 
-    bridge_file = "../DATA1/COUT/{prefix}_R1.37br_for.txt".format(**formatting_dct)
+    bridge_file = os.path.join(PATH_ABSOLUTE, "data/cout/{prefix}_R1.37br_for.txt".format(**formatting_dct))
     bridge_raw_file = raw_read_file(bridge_file, 
                                     [3, 4, 5, 6], 
                                     ['has_nobridge', 'bridge_nmm', 'bridge_bgn', 'bridge_end'], 
@@ -53,7 +61,7 @@ try:
     del bridge_raw_file
 
 
-    br_err = "../DATA1/COUT/{prefix}_R1.GA.txt".format(**formatting_dct)
+    br_err = os.path.join(PATH_ABSOLUTE, "data/cout/{prefix}_R1.GA.txt".format(**formatting_dct))
     br_err_raw_file = raw_read_file(br_err, 
                                     [2], 
                                     ['has_GA'],
@@ -61,7 +69,7 @@ try:
     update_hdf5(outfile, br_err_raw_file, int)
     del br_err_raw_file
 
-    trim_file = "../DATA1/TABLES/{prefix}.trimtable.txt".format(**formatting_dct)
+    trim_file = os.path.join(PATH_ABSOLUTE, "data/tables/{prefix}.trimtable.txt".format(**formatting_dct))
     trim_raw_file = raw_read_file(trim_file, 
                                   [5, 7], 
                                   ['trimF', 'trimR'], 
@@ -69,7 +77,7 @@ try:
     update_hdf5(outfile, trim_raw_file, int)
     del trim_raw_file
 
-    ggg_file = "../DATA1/COUT/{prefix}_R2.ggg.txt".format(**formatting_dct)
+    ggg_file = os.path.join(PATH_ABSOLUTE, "data/cout/{prefix}_R2.ggg.txt".format(**formatting_dct))
     ggg_raw_file = raw_read_file(ggg_file, 
                                  [3, 5, 6], 
                                  ['has_noggg', 'ggg_bgn', 'ggg_end'], 
@@ -77,7 +85,7 @@ try:
     update_hdf5(outfile, ggg_raw_file, int)
     del ggg_raw_file
 
-    dna_len_file = "../DATA1/FILTERED/{prefix}.dna.info.txt".format(**formatting_dct)
+    dna_len_file = os.path.join(PATH_ABSOLUTE, "data/filtered/{prefix}.dna.info.txt".format(**formatting_dct))
     dna_len_raw_file = raw_read_file(dna_len_file, 
                                      [2, 3, 4, 5, 6],
                                      ['dna_R1_bgn', 'dna_R1_end', 'dna_R1_len_notrim', 'dna_R1_end_trim', 'dna_R1_len_trim'],
@@ -85,7 +93,7 @@ try:
     update_hdf5(outfile, dna_len_raw_file, int)
     del dna_len_raw_file
 
-    rna_len_file = "../DATA1/FILTERED/{prefix}.rna.info.txt".format(**formatting_dct)
+    rna_len_file = os.path.join(PATH_ABSOLUTE, "data/filtered/{prefix}.rna.info.txt".format(**formatting_dct))
     rna_len_raw_file = raw_read_file(rna_len_file, 
                                      [2, 3, 4, 5, 6],
                                      ['rna_R2_bgn', 'rna_R2_end', 'rna_R2_len_notrim', 'rna_R2_end_trim', 'rna_R2_len_trim'],
@@ -93,7 +101,7 @@ try:
     update_hdf5(outfile, rna_len_raw_file, int)
     del rna_len_raw_file
 
-    rna1_len_file = "../DATA1/FILTERED/{prefix}.rna1.info.txt".format(**formatting_dct)
+    rna1_len_file = os.path.join(PATH_ABSOLUTE, "data/filtered/{prefix}.rna1.info.txt".format(**formatting_dct))
     rna1_len_raw_file = raw_read_file(rna1_len_file, 
                                       [2, 3, 4, 5, 6],
                                       ['rna1_R1_bgn', 'rna1_R1_end', 'rna1_R1_len_notrim', 'rna1_R1_end_trim', 'rna1_R1_len_trim'],
@@ -103,7 +111,7 @@ try:
 
 
     dct_ids = {k:0 for k in raw_file['id']}
-    is_dup_file = "../DATA1/TABLES/{prefix}.unique_idx.txt".format(**formatting_dct)
+    is_dup_file = os.path.join(PATH_ABSOLUTE, "data/tables/{prefix}.unique_idx.txt".format(**formatting_dct))
     with open(is_dup_file, 'r') as inf:
         l = inf.readline().strip()
         while len(l)>0:
@@ -114,7 +122,7 @@ try:
     update_hdf5(outfile, fastuniq_dct, int)
     del fastuniq_dct, dct_ids
 
-    dna_map_file = "../DATA1/SAM/{prefix}.dna.sam".format(**formatting_dct)
+    dna_map_file = os.path.join(PATH_ABSOLUTE, "data/sam/{prefix}.dna.sam".format(**formatting_dct))
     dna_map_raw_file = raw_read_file(dna_map_file, 
       [1, 2, -1, 3, 6], 
       ['id', 'dna_is_mapped', 'dna_is_not_multi', 'dna_chr', 'dna_cigar'], 
@@ -131,7 +139,7 @@ try:
     del dna_map_raw_file_inferred, dna_map_raw_file
 
 
-    rna_map_file = "../DATA1/SAM/{prefix}.rna.sam".format(**formatting_dct)
+    rna_map_file = os.path.join(PATH_ABSOLUTE, "data/sam/{prefix}.rna.sam".format(**formatting_dct))
     rna_map_raw_file = raw_read_file(rna_map_file, 
       [1, 2, -1, 3, 6], 
       ['id', 'rna_is_mapped', 'rna_is_not_multi', 'rna_chr', 'rna_cigar'], 
@@ -147,7 +155,7 @@ try:
 
     del rna_map_raw_file_inferred, rna_map_raw_file
 
-    rna1_map_file = "../DATA1/SAM/{prefix}.rna1.sam".format(**formatting_dct)
+    rna1_map_file = os.path.join(PATH_ABSOLUTE, "data/sam/{prefix}.rna1.sam".format(**formatting_dct))
     rna1_map_raw_file = raw_read_file(rna1_map_file, 
       [1, 2, -1, 3, 6], 
       ['id', 'rna1_is_mapped', 'rna1_is_not_multi', 'rna1_chr', 'rna1_cigar'], 
@@ -162,7 +170,7 @@ try:
     del rna1_map_raw_file_inferred, rna1_map_raw_file 
 
 
-    dna_map_file = "../DATA1/SAM/{prefix}.dna.sam.nonla".format(**formatting_dct)
+    dna_map_file = os.path.join(PATH_ABSOLUTE, "data/sam/{prefix}.dna.sam.nonla".format(**formatting_dct))
     dna_map_raw_file = raw_read_file(dna_map_file, 
       [1, 2, -1, 3, 6], 
       ['id', 'dna_noNla_is_mapped', 'dna_noNla_is_not_multi', 'dna_noNla_chr', 'dna_noNla_cigar'], 
@@ -177,7 +185,7 @@ try:
     del dna_map_raw_file_inferred, dna_map_raw_file
 
 
-    dna_map_file = "../DATA1/BED/{prefix}.dna.bed".format(**formatting_dct)
+    dna_map_file = os.path.join(PATH_ABSOLUTE, "data/bed/{prefix}.dna.bed".format(**formatting_dct))
     dna_map_raw_file = raw_read_file(dna_map_file, 
       [2, 3, 4, 6], 
       ['dna_bgn', 'dna_end', 'id', 'dna_strand'], 
@@ -192,7 +200,7 @@ try:
     del dna_map_raw_file_inferred, dna_map_raw_file
 
 
-    rna_map_file = "../DATA1/BED/{prefix}.rna.bed".format(**formatting_dct)
+    rna_map_file = os.path.join(PATH_ABSOLUTE, "data/bed/{prefix}.rna.bed".format(**formatting_dct))
     rna_map_raw_file = raw_read_file(rna_map_file, 
       [2, 3, 4, 6], 
       ['rna_bgn', 'rna_end', 'id', 'rna_strand'], 
@@ -207,7 +215,7 @@ try:
     del rna_map_raw_file_inferred, rna_map_raw_file
 
 
-    rna1_map_file = "../DATA1/BED/{prefix}.rna1.bed".format(**formatting_dct)
+    rna1_map_file = os.path.join(PATH_ABSOLUTE, "data/bed/{prefix}.rna1.bed".format(**formatting_dct))
     rna1_map_raw_file = raw_read_file(rna1_map_file, 
       [2, 3, 4, 6], 
       ['rna1_bgn', 'rna1_end', 'id', 'rna1_strand'], 
@@ -223,7 +231,7 @@ try:
 
 
     ### Reading already prepared dataset with restriction fragments
-    f_rsites = h5py.File("../DATA/ANNOT/rsites.hdf5", "r")
+    f_rsites = h5py.File(os.path.join(PATH_ABSOLUTE, "data/genome/rsites.hdf5"), "r")
 
 
     ### Preparation of dataset for checking rfrag positions
@@ -259,7 +267,7 @@ try:
             rs = f_rsites[renz_raw][ch][()]
 
             for k, bgn, end, chs in rng:
-                mask = chs==('chr'+ch).encode()
+                mask = chs==ch.encode()
 
                 idx = np.digitize(bgn[mask], rs)
                 bgns = rs[idx-1]
@@ -302,7 +310,9 @@ try:
     outfile.create_dataset("rna1_chr_canonical", data=np.array(v, dtype=bool))
 
 
-
+    print(outfile['rna_bgn_nla_left'][()][outfile[ 'rna_chr_canonical'][()] ], outfile['rna_strand'][()][outfile[ 'rna_chr_canonical'][()] ])
+    
+    
     nla_rna_failed = ((outfile['rna_strand'][()]==1) & \
       (((outfile['rna_bgn_nla_left'][()]<=0) & (outfile['rna_bgn_nla_left'][()]>=-5)) | \
        ((outfile['rna_bgn_nla_right'][()]<=1) & (outfile['rna_bgn_nla_right'][()]>=0)))) | \
