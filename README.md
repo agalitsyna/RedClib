@@ -148,3 +148,21 @@ python 04_filtering.py K562_rep1_wo-ligase
 This command applies filters for each read and produces filtering statistics and final TSV file with observed RNA-DNA contacts.
 
 For more details, see Methods section of upcoming manuscript.
+
+## Running analysis on your data
+
+The RedClib code was optimized and tested for a given dataset (including FASTQ files with their specific lengths, oligos with adapters, and bridge).
+Before running it for your custom files, please, note several important details.
+
+1. The read length associated with the FASTQ file is pre-defined. It is explicitly hard-coded in 02_run_analysis.py for the given file names.
+
+If you want to introduce your file name, you should add its prefix to the "lengths_dict" dictionary in 02_run_analysis.py. Note that all reads in FASTQ file should be the same length.
+
+2. The read length is passed to the C-program "align_universal.c" that performs a search of oligos in the FASTQ sequences. It is essential for the search algorithm, that can now work with typical Illumina reads lengths: 151, 133, 125, 101, 75, 80. All other read lengths are not currently implemented.
+
+3. One can use the custom adapter or oligos sequences. Example files are stored as FASTA files in data/oligos/ folder. If you want to use custom FASTA files, note that files should have Unix newline (\n) at the end of each line, including the last one. FASTA file is a text file, and according to [unix specification](https://pubs.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap03.html#tag_03_392), a text file is a single or a series of lines, each of which ends with a newline character (\n).
+
+Check the presence of newline character at the end of your files with:
+```bash
+od -t c br_37_for.fasta
+```
