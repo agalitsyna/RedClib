@@ -160,7 +160,7 @@ If you want to introduce your file name, you should add its prefix to the "lengt
 
 2. The read length is passed to the C-program "align_universal.c" that performs a search of oligos in the FASTQ sequences. It is essential for the search algorithm, that can now work with typical Illumina reads lengths: 151, 133, 125, 101, 75, 80. All other read lengths are not currently implemented.
 
-3. One can use the custom adapter or oligos sequences. Example files are stored as FASTA files in data/oligos/ folder. If you want to use custom FASTA files, note that files should have Unix newline (\n) at the end of each line, including the last one. FASTA file is a text file, and according to [unix specification](https://pubs.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap03.html#tag_03_392), a text file is a single or a series of lines, each of which ends with a newline character (\n).
+3.d One can use the custom adapter or oligos sequences. Example files are stored as FASTA files in data/oligos/ folder. If you want to use custom FASTA files, note that files should have Unix newline (\n) at the end of each line, including the last one. FASTA file is a text file, and according to [unix specification](https://pubs.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap03.html#tag_03_392), a text file is a single or a series of lines, each of which ends with a newline character (\n).
 
 Check the presence of newline character at the end of your files with:
 ```bash

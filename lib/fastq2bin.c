@@ -15,14 +15,16 @@ unsigned int main (int argc, char **argv)
   FILE * bin;
   bin = fopen(argv[2],"wb");
 
-  char s[161];
+  int chunk_size=5000; // Buffer size
+  int name_length=5000; // Maximal length of read name
+  char s[chunk_size+1];  // Buffer string for the current fastq line
   int i,c, buf=0x00000000,n, u1;
   int l[8] = {0x00000007,0x00000070,0x00000700,0x00007000,0x00070000,0x00700000,0x07000000,0x70000000};
 
   while(1)
   {
-    fgets(s,100,fastq);         // Getting line with name
-    fgets(s,160,fastq);         // Getting line with sequence
+    fgets(s,name_length,fastq);         // Getting line with name
+    fgets(s,chunk_size,fastq);  // Getting line with sequence
     if (feof(fastq)){break;}    // Break out if reach the end
 
     n=0;                        // Iterating over the characters in line
@@ -48,14 +50,14 @@ unsigned int main (int argc, char **argv)
     {
       fwrite(&buf,4,1,bin); 
       n++; 
-    } // Wringing the last fogotten characters
+    } // Wringing the last forgotten characters
 
     buf=0x20000000;
     fwrite(&buf,4,1,bin);
     buf=0x00000000;
     n++;
-    fgets(s,160,fastq);
-    fgets(s,160,fastq);
+    fgets(s,chunk_size,fastq);
+    fgets(s,chunk_size,fastq);
   }
   buf=0x50000000;
   fwrite(&buf,4,1,bin);         // Intentional empty sequence

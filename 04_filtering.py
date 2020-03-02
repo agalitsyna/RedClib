@@ -4,7 +4,6 @@ import numpy as np
 import h5py
 
 prefix = argv[1]
-formatting_dct = {'prefix': prefix}
 
 PATH_ABSOLUTE = os.path.dirname(os.path.realpath(__file__))
 PATH_OUT = os.path.join(PATH_ABSOLUTE, "data/out/")
@@ -13,7 +12,7 @@ PATH_OUT1 = os.path.join(PATH_ABSOLUTE, "data/results/")
 if not os.path.isdir(PATH_OUT1):
     os.mkdir(PATH_OUT1)
 
-filename = os.path.join(PATH_OUT, "table_{prefix}.hdf5".format(**formatting_dct))
+filename = os.path.join(PATH_OUT, f"table_{prefix}.hdf5")
 
 outfile = h5py.File(filename, "r")
 
@@ -125,7 +124,7 @@ columns_names = """id 3rna_chr 3rna_bgn 3rna_end 3rna_strand 3rna_cigar
 dna_chr dna_bgn dna_end dna_strand dna_cigar""".split()
 dct = {k:outfile[k][()][idx] for k in columns}
 
-output = os.path.join(PATH_ABSOLUTE, "data/results/{prefix}_passed.tsv".format(**formatting_dct))
+output = os.path.join(PATH_ABSOLUTE, f"data/results/{prefix}_passed.tsv")
 
 def strand(x):
     if x:

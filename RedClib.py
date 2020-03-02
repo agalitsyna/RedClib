@@ -179,7 +179,7 @@ class RedCprocessing:
         cmd_runtime = str(timedelta(seconds=cmd_end_time - cmd_bgn_time))
 
         if is_err1 or is_err2:
-            logging.debug("Subsequences retrieval failed. Runtime: {}. Filenames:\n\t{}\n\t{}".format(cmd_runtime, infile1, outfile_R1))
+            logging.debug("Subsequences retrieval failed. Runtime: {}. Filenames:\n\t{}\n\t{}".format(cmd_runtime, infile_fastq, outfile_R1))
         else:
             logging.debug("Subsequences retrieval finished successfully. Runtime: {}".format(cmd_runtime))
 
@@ -326,35 +326,36 @@ class RedCprocessing:
                           left_shift=0, right_shift=80,
                           mismatch_general=0, mode=1, report_len=20):
 
-        dct_formatting = {"infile":infile,
-                          "bin_tmp_dir": bin_tmp_dir,
-                          "outfile_for": outfile_for,
-                          "outfile_rev": outfile_rev,
-                          "primer_for": primer_for,
-                          "primer_rev": primer_rev,
-                          "bin_infile2bin": bin_infile2bin,
-                          "bin_primer2bin": bin_primer2bin,
-                          "bin_align": bin_align,
-                          "seq_length": seq_length,
-                          "n_primers": n_primers,
-                          "left_shift": left_shift,
-                          "right_shift": right_shift,
-                          "mismatch_general": mismatch_general,
-                          "mismatch_add": 0, # deprecated parameter. Enter whatever interpretable as unsigned int. TODO: fix
-                          "mode": mode,
-                          "report_len": report_len}
+        # dct_formatting = {"infile":infile,
+        #                   "bin_tmp_dir": bin_tmp_dir,
+        #                   "outfile_for": outfile_for,
+        #                   "outfile_rev": outfile_rev,
+        #                   "primer_for": primer_for,
+        #                   "primer_rev": primer_rev,
+        #                   "bin_infile2bin": bin_infile2bin,
+        #                   "bin_primer2bin": bin_primer2bin,
+        #                   "bin_align": bin_align,
+        #                   "seq_length": seq_length,
+        #                   "n_primers": n_primers,
+        #                   "left_shift": left_shift,
+        #                   "right_shift": right_shift,
+        #                   "mismatch_general": mismatch_general,
+        #                   "mismatch_add": 0, # deprecated parameter. Enter whatever interpretable as unsigned int. TODO: fix
+        #                   "mode": mode,
+        #                   "report_len": report_len}
 
-        dct_formatting["tmp_filename"] = bin_tmp_dir + infile.split("/")[-1] + ".bin"
+        mismatch_add = 0 # deprecated parameter of align_universal. Can be whatever interpretable as unsigned int. TODO: fix
+        tmp_filename = bin_tmp_dir + infile.split("/")[-1] + ".bin"
 
-        command1 = "{bin_infile2bin} {infile} {tmp_filename}".format(**dct_formatting)
+        command1 = f"{bin_infile2bin} {infile} {tmp_filename}"
 
-        dct_formatting["tmp_for"] = bin_tmp_dir + primer_for.split("/")[-1] + ".bin"
+        tmp_for = bin_tmp_dir + primer_for.split("/")[-1] + ".bin"
         if primer_rev:
-            dct_formatting["tmp_rev"] = bin_tmp_dir + primer_rev.split("/")[-1] + ".bin"
+            tmp_rev = bin_tmp_dir + primer_rev.split("/")[-1] + ".bin"
         else:
-            dct_formatting["tmp_rev"] = ""
-        command2 = "{bin_primer2bin} {primer_for} {tmp_for}".format(**dct_formatting)
-        command3 = "{bin_primer2bin} {primer_rev} {tmp_rev}".format(**dct_formatting)
+            tmp_rev = ""
+        command2 = f"{bin_primer2bin} {primer_for} {tmp_for}"
+        command3 = f"{bin_primer2bin} {primer_rev} {tmp_rev}"
 
         if seq_length==101:
             bin_seq_length = 15
@@ -366,14 +367,15 @@ class RedCprocessing:
             bin_seq_length = 12
         elif seq_length==133:
             bin_seq_length = 19
+        elif seq_length==251:
+            bin_seq_length = 34
         else:
             raise Exception("Length not found!")
-        dct_formatting["bin_seq_length"] = bin_seq_length
 
-        command4 = "{bin_align} {tmp_for} {tmp_filename} {mode} {seq_length} {bin_seq_length} {n_primers} \
-{left_shift} {right_shift} {mismatch_general} {mismatch_add} {report_len} > {outfile_for}".format(**dct_formatting)
-        command5 = "{bin_align} {tmp_rev} {tmp_filename} {mode} {seq_length} {bin_seq_length} {n_primers} \
-{left_shift} {right_shift} {mismatch_general} {mismatch_add} {report_len} > {outfile_rev}".format(**dct_formatting)
+        command4 = f"{bin_align} {tmp_for} {tmp_filename} {mode} {seq_length} {bin_seq_length} {n_primers} \
+{left_shift} {right_shift} {mismatch_general} {mismatch_add} {report_len} > {outfile_for}"
+        command5 = f"{bin_align} {tmp_rev} {tmp_filename} {mode} {seq_length} {bin_seq_length} {n_primers} \
+{left_shift} {right_shift} {mismatch_general} {mismatch_add} {report_len} > {outfile_rev}"
 
         if not bin_infile2bin:
             command1 = "echo -"
@@ -408,10 +410,8 @@ class RedCprocessing:
             logging.error("Align forward failed: {}.".format(is_err5))
             return 1
 
-        logging.debug("Alignment of oligos finished! Runtime of steps: {} {} {}. Total: {}".format(cmd_runtime1,
-                                                                           cmd_runtime4,
-                                                                           cmd_runtime5,
-                                                                           cmd_runtime1+cmd_runtime4+cmd_runtime5))
+        logging.debug(f"Alignment of oligos finished! Runtime of steps: {cmd_runtime1} {cmd_runtime4} {cmd_runtime5}. \
+                        Total: {cmd_runtime1+cmd_runtime4+cmd_runtime5}")
         return 0
 
     def run_oligos_alignment_paired(self, infile1, infile2, bin_tmp_dir,
@@ -437,6 +437,8 @@ class RedCprocessing:
             bin_seq_length = 12
         elif seq_length==133:
             bin_seq_length = 19
+        elif seq_length==251:
+            bin_seq_length = 34
         else:
             raise Exception("Length not found!")
 
