@@ -166,3 +166,11 @@ Check the presence of newline character at the end of your files with:
 ```bash
 od -t c br_37_for.fasta
 ```
+
+## Pipeline description
+
+RedClib has a set of intermediary files:
+
+<img src="img/RedC_pipeline.png"
+     alt="RedC pipeline information"
+     style="float: left; margin-right: 10px;" />

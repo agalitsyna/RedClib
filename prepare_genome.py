@@ -61,6 +61,7 @@ logging.info("Writing output hdf5 file...")
 f = h5py.File( os.path.join(PATH_ABSOLUTE, "data/genome/rsites.hdf5"), "w")
 n_chrms = len(genome_db.chrmLabels)
 dset_nla = f.create_group("nla", (n_chrms,) )
+dset_dpn = f.create_group("dpn", (n_chrms,) )
 dset_mme_p = f.create_group("mme+", (n_chrms,) )
 dset_mme_m = f.create_group("mme-", (n_chrms,) )
 
@@ -74,6 +75,12 @@ for ch in genome_db.label2idx.keys():
     rs = true_poss[genome_db.label2idx[ch]][strands[genome_db.label2idx[ch]]==0]
     rs = np.append(rs, len(genome_db.seqs[genome_db.label2idx[ch]]))
     dset = dset_mme_m.create_dataset(ch, data=rs)
+    
+genome_db.setEnzyme('DpnII')
+for ch in genome_db.label2idx.keys():
+    rs = genome_db.rsites[genome_db.label2idx[ch]]-6
+    rs = np.append(rs, len(genome_db.seqs[genome_db.label2idx[ch]]))
+    dset = dset_dpn.create_dataset(ch, data=rs)
     
 f.close()
 logging.info("Genome restriction sites preparation done!")
