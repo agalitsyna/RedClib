@@ -141,17 +141,17 @@ class RedCprocessing:
 
         if "gz" in file1:
             if id_exp:
-                command = str(r"""paste <(gzip -dc {file1} | sed 'N;N;N;s/\n/ /g' | awk 'BEGIN{{OFS="\t"}}{{print $1, "{id_exp}", $3, $5}}') <(sed 'N;N;N;s/\n/ /g' {file2} | awk 'BEGIN{{OFS="\t"}}{{print $3, $5}}') > {file_tmp}""") \
+                command = str(r"""paste <(gzip -dc {file1} | awk '{{print $1}}' | sed 'N;N;N;s/\n/ /g' | awk 'BEGIN{{OFS="\t"}}{{print $1, "{id_exp}", $2, $4}}') <(gzip -dc {file2} | awk '{{print $1}}' | sed 'N;N;N;s/\n/ /g' | awk 'BEGIN{{OFS="\t"}}{{print $2, $4}}') > {file_tmp}""") \
                       .format(**fmt_dct)
             else:
-                command = str(r"""paste <(gzip -dc {file1} | sed 'N;N;N;s/\n/ /g' | awk 'BEGIN{{OFS="\t"}}{{print $1, $3, $5}}') <(sed 'N;N;N;s/\n/ /g' {file2} | awk 'BEGIN{{OFS="\t"}}{{print $3, $5}}') > {file_tmp}""")\
+                command = str(r"""paste <(gzip -dc {file1} | awk '{{print $1}}' | sed 'N;N;N;s/\n/ /g' | awk 'BEGIN{{OFS="\t"}}{{print $1, $2, $4}}') <(gzip -dc {file2} | awk '{{print $1}}' | sed 'N;N;N;s/\n/ /g' | awk 'BEGIN{{OFS="\t"}}{{print $2, $4}}') > {file_tmp}""")\
                       .format(**fmt_dct)
         else:
             if id_exp:
-                command = str(r"""paste <(sed 'N;N;N;s/\n/ /g' {file1} | awk 'BEGIN{{OFS="\t"}}{{print $1, "{id_exp}", $3, $5}}') <(sed 'N;N;N;s/\n/ /g' {file2} | awk 'BEGIN{{OFS="\t"}}{{print $3, $5}}') > {file_tmp}""") \
+                command = str(r"""paste <(awk '{{print $1}}' {file1} | sed 'N;N;N;s/\n/ /g' | awk 'BEGIN{{OFS="\t"}}{{print $1, "{id_exp}", $2, $4}}') <(awk '{{print $1}}' {file2} | sed 'N;N;N;s/\n/ /g' | awk 'BEGIN{{OFS="\t"}}{{print $2, $4}}') > {file_tmp}""") \
                       .format(**fmt_dct)
             else:
-                command = str(r"""paste <(sed 'N;N;N;s/\n/ /g' {file1} | awk 'BEGIN{{OFS="\t"}}{{print $1, $3, $5}}') <(sed 'N;N;N;s/\n/ /g' {file2} | awk 'BEGIN{{OFS="\t"}}{{print $3, $5}}') > {file_tmp}""")\
+                command = str(r"""paste <(awk '{{print $1}}' {file1} | sed 'N;N;N;s/\n/ /g' | awk 'BEGIN{{OFS="\t"}}{{print $1, $2, $4}}') <(awk '{{print $1}}' {file2} | sed 'N;N;N;s/\n/ /g' | awk 'BEGIN{{OFS="\t"}}{{print $2, $4}}') > {file_tmp}""")\
                       .format(**fmt_dct)
 
         is_err, cmd_runtime = self.run_and_check_command(command)
