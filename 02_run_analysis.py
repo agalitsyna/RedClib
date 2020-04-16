@@ -212,9 +212,9 @@ a.run_oligos_alignment_paired(outfile_R1+'_revcomp', infile2_fastq,
 
 # Get substring from R1 and R2
 
-utfile1 = PATH_SEQS + f'{prefix}.dna.fastq'
-utfile2 = PATH_SEQS + f'{prefix}.rna.fastq'
-utfile3 = PATH_SEQS + f'{prefix}.rna1.fastq'
+outfile1 = PATH_SEQS + f'{prefix}.dna.fastq'
+outfile2 = PATH_SEQS + f'{prefix}.rna.fastq'
+outfile3 = PATH_SEQS + f'{prefix}.rna1.fastq'
 
 a.get_substrings(file_fastq, file_trim,
                file_r1_for, file_r2_for, file_r1_rev16,
