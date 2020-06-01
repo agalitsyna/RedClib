@@ -15,8 +15,11 @@ logging.info("Preparation of genome...")
 cmd_bgn_time = time.time()
 
 PATH_ABSOLUTE = os.path.dirname(os.path.realpath(__file__))
-fasta_path   = os.path.join(PATH_ABSOLUTE, "data/genome/hg19.fa")
-chrms             = ['10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '1', '20', '21', '22', '2', '3', '4', '5', '6', '7', '8', '9', 'M', 'X', 'Y' ]
+fasta_path   = os.path.join(PATH_ABSOLUTE, "data/genome/hg19.fa") # Note that a single file with all chromosomes is preferred
+chrms             = ['10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '1', '20', '21', '22', '2', '3', '4', '5', '6', '7', '8', '9', 'M', 'X', 'Y' ] # Note the chromosomes order
+# For other genomes, you might want to use gap file, e.g. for hg38: http://hgdownload.cse.ucsc.edu/goldenpath/hg38/database/gap.txt.gz
+#genome_db    = genome.Genome(fasta_path, readChrms=chrms, gapFile="gap.hg38.txt")
+# For hg19, this variant works perfectly with mirnylib.genome
 genome_db    = genome.Genome(fasta_path, readChrms=chrms)
 enzymes = ['NlaIII', 'MmeI', 'DpnII', 'MseI']
 
@@ -28,7 +31,6 @@ true_poss = [[] for i in range(len(genome_db.seqs))]
 for i in range(len(genome_db.seqs)):
     s = genome_db.seqs[i]
     for pos in genome_db.rsites[i]:
-        print('bad case! {} {}, sequences: {} {}'.format(i, pos, s.seq[pos+16:pos+22], s.seq[pos-28:pos-22]))
         if (str(s.seq[pos+16:pos+18]).upper()=='GT')&(str(s.seq[pos+19:pos+22]).upper()=='GGA'):
             strand = 0
             true_pos = pos+16
