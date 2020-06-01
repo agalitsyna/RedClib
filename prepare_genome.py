@@ -28,23 +28,24 @@ true_poss = [[] for i in range(len(genome_db.seqs))]
 for i in range(len(genome_db.seqs)):
     s = genome_db.seqs[i]
     for pos in genome_db.rsites[i]:
-        if (str(s[pos+16:pos+18]).upper()=='GT')&(str(s[pos+19:pos+22]).upper()=='GGA'):
+        print('bad case! {} {}, sequences: {} {}'.format(i, pos, s.seq[pos+16:pos+22], s.seq[pos-28:pos-22]))
+        if (str(s.seq[pos+16:pos+18]).upper()=='GT')&(str(s.seq[pos+19:pos+22]).upper()=='GGA'):
             strand = 0
             true_pos = pos+16
-        elif (str(s[pos-28:pos-25]).upper()=='TCC')&(str(s[pos-24:pos-22]).upper()=='AC'):
+        elif (str(s.seq[pos-28:pos-25]).upper()=='TCC')&(str(s.seq[pos-24:pos-22]).upper()=='AC'):
             strand = 1
             true_pos = pos-28
-        elif (str(s[pos+16:pos+18]).upper()=='NN')&(str(s[pos+19:pos+22]).upper()=='NNN'):
+        elif (str(s.seq[pos+16:pos+18]).upper()=='NN')&(str(s.seq[pos+19:pos+22]).upper()=='NNN'):
             strand = -1
             true_pos = -1
-        elif (str(s[pos-28:pos-25]).upper()=='NNN')&(str(s[pos-24:pos-22]).upper()=='NN'):
+        elif (str(s.seq[pos-28:pos-25]).upper()=='NNN')&(str(s.seq[pos-24:pos-22]).upper()=='NN'):
             strand = -1
             true_pos = -1
-        elif (len(str(s[pos+16:pos+18]))<2)|(len(str(s[pos+19:pos+22]))<3):
+        elif (len(str(s.seq[pos+16:pos+18]))<2)|(len(str(s.seq[pos+19:pos+22]))<3):
             strand = -1
             true_pos = -1
         else:
-            raise Exception('bad case! {} {}'.format(i, pos))
+            raise Exception('bad case! {} {}, sequences: {} {}'.format(i, pos, s.seq[pos+16:pos+22], s.seq[pos-28:pos-22]))
         strands[i].append(strand)
         true_poss[i].append(true_pos)
     strands[i] = np.array(strands[i])
