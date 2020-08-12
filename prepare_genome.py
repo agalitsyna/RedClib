@@ -31,7 +31,11 @@ true_poss = [[] for i in range(len(genome_db.seqs))]
 for i in range(len(genome_db.seqs)):
     s = genome_db.seqs[i]
     for pos in genome_db.rsites[i]:
-        if (str(s.seq[pos+16:pos+18]).upper()=='GT')&(str(s.seq[pos+19:pos+22]).upper()=='GGA'):
+        # Check that the found position is not located at the end of chromosome:
+        if pos+16>len(s) or pos+22>len(s) or pos-28<0 or pos-22<0:
+            strand = -1
+            true_pos = -1
+        elif (str(s.seq[pos+16:pos+18]).upper()=='GT')&(str(s.seq[pos+19:pos+22]).upper()=='GGA'):
             strand = 0
             true_pos = pos+16
         elif (str(s.seq[pos-28:pos-25]).upper()=='TCC')&(str(s.seq[pos-24:pos-22]).upper()=='AC'):
