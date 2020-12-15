@@ -1,0 +1,255 @@
+input:
+        fastq_paths:
+                # Input syntax:
+                # library_name:
+                #   - forward.library.fastq or .gz
+                #   - reverse.library.fastq or .gz
+
+                test:
+                    - /home/user/soft/RedClib/data/fastq/sample_R1_001.fastq.gz
+                    - /home/user/soft/RedClib/data/fastq/sample_R2_001.fastq.gz
+
+        oligos: # Always plain fasta
+                # Bridge fasta has 1 record:
+                bridge_forward: /home/user/soft/RedClib/data/oligos/br_37_for.fasta
+                bridge_reverse: /home/user/soft/RedClib/data/oligos/br_37_rev.fasta
+                # GGG fasta has 1 record:
+                ggg: /home/user/soft/RedClib/data/oligos/ggg.fasta
+                # Adaptors files have 2 records:
+                adaptor_forward: /home/user/soft/RedClib/data/oligos/for_20.fasta
+                adaptor_reverse: /home/user/soft/RedClib/data/oligos/rev_20.fasta
+                adaptor_reverse_short: /home/user/soft/RedClib/data/oligos/rev_16.fasta
+
+genome:
+        assembly_name: hg19
+
+        # If auto_download in on, the genome with assembly_name will be downloaded from UCSC,
+        # the index will be build and the chromosome size calculated.
+        auto_download: true
+
+        # If auto_download is off, the local files will be used instead.
+        # "fasta" and "chromsizes" can be URLs instead.
+        # Note that if "fasta" is URL then index_prefix is ignored and index will be build de novo.
+        #fasta:        /home/user/GENOMES/hg19/hg19.fa
+        #chromsizes:   /home/user/GENOMES/hg19/hg19.chromsizes.txt
+        #index_prefix: /home/user/GENOMES/hg19/hisat2/genome
+
+rna_annotation:
+        # We use RNA annotation from Gencode, it's custom name:
+        rna_annotation_name: gencode19
+
+        # Can be local file or URL:
+        genes_gtf: ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_19/gencode.v19.chr_patch_hapl_scaff.annotation.gtf.gz
+
+protocol:
+        read_length: 151
+
+        # Keys for loading restriction enzymes data:
+        renz:
+                # Syntax, see filters.restriction for example usage of keys:
+                # key: actual_restr_enz_name
+                nla: NlaIII
+                mme: MmeI
+                dpn: DpnII
+                mse: MseI
+
+        # Length of bridge (should correspond to the bridge length in bridge_forward/bridge_reverse files):
+        bridge_length: 37
+
+run:
+        # Input fastq files are split into chunks with this number of reads per chunk:
+        chunksize: 5000
+        # For real-life usage, values aroun 1e6 are optimal
+        # The larger the chunk size, the more memory will be consumed.
+        # With fine chunks, the merge step will take a long time.
+
+        # Length of read for detection of PCR duplications:
+        fastuniq_crop: 50
+
+        # Parameters for reads quality trimming:
+        params_trimmomatic: "SLIDINGWINDOW:5:26 MINLEN:0"
+
+        # Length of RNA parts for the detection of overlap of forward/reverse read
+        rna_complementary_length: 14
+
+        # DNA extension (e.g. restriction site). Set to "" or remove if no restirction site extension is needed.
+        dna_extension: "CATG"
+
+        # Min size for DNA/RNA1/RNA2 part so that it's subjected to mapping:
+        min_substring_size: 14
+
+        # Run restriction by these enzymes for the specified segments:
+        check_restriction: true
+        restriction_check:
+                dna:
+                        - nla
+                dna_nonextended:
+                        - nla
+                rna1:
+                        - nla
+                        - mmep # Mme recognised on plus chain
+                        - mmen # Mme recognised on minus chain
+                rna2:
+                        - nla
+                        - mmep
+                        - mmen
+
+# Filters are named criteria that will be reported in the final file with statistics.
+# Write filters as if they were Python operations on numpy vectors (numpy is imported as np).
+### List of available variables:
+# id, is_notPCRdup, seqR1, seqR1_len, seqR2, seqR2_len, trimF, trimR,
+# has_GA, has_nobridge, bridge_end, bridge_nmm, bridge_start, has_noggg, ggg_end, ggg_start,
+# dna_R1_len_notrim, dna_R1_len_trim, dna_R1_start, dna_R1_end, dna_R1_end_trim, 
+# dna_chr, dna_start, dna_end, dna_strand, dna_cigar, dna_is_mapped, dna_is_not_multi, dna_nlen, 
+# dna_noNla_chr, dna_noNla_is_mapped, dna_noNla_is_not_multi, dna_noNla_cigar,  
+# rna1_R1_start, rna1_R1_end, rna1_R1_end_trim, rna1_R1_len_notrim, rna1_R1_len_trim, 
+# rna1_chr, rna1_start, rna1_end, rna1_strand, rna1_cigar, rna1_is_mapped, rna1_is_not_multi, rna1_nlen, 
+# rna2_R2_start, rna2_R2_end, rna2_R2_end_trim, rna2_R2_len_notrim, rna2_R2_len_trim, 
+# rna2_chr, rna2_start, rna2_end, rna2_strand, rna2_cigar, rna2_is_mapped, rna2_is_not_multi, rna2_nlen
+#
+### For restriction filters, the keys and renzymes are loaded from protocol.renz section of this file.
+# The segments are compared against the renzymes recognition sites in run.restriction_check section.
+# If restriction enzyme with name nla appeared for rna1 fragment in restriction_check, and it corresponds
+# to enzyme with palindromic recognition site (e.g. NlaIII), the following variables are accessible:
+# rna1_end_nla_left, rna1_end_nla_right, rna1_start_nla_left, rna1_start_nla_right
+### If enzyme is not palindromic, then the DNA strand matters, and we hit + (p) and - (n) strands separately:
+# rna1_start_mmep_left, rna1_start_mmep_right, rna1_start_mmen_left, rna1_start_mmen_right,
+# rna1_end_mmep_left, rna1_end_mmep_right, rna1_end_mmen_left, rna1_end_mmen_right
+
+filters:
+        # Specify the restriction filters:
+        restriction:
+                rna2_mme_failed: # <- filter name
+                        - '(rna2_strand=="+") & (rna2_start_mmep_left<=-26) & (rna2_start_mmep_left>=-27)'
+                        - '(rna2_strand=="+") & (rna2_start_mmen_right<=19) & (rna2_start_mmen_right>=-18)'
+                        - '(rna2_strand=="-") & (rna2_end_mmep_left<=-25) & (rna2_end_mmep_left>=-26)'
+                        - '(rna2_strand=="-") & (rna2_end_mmen_right<=21) & (rna2_end_mmen_right>=20)'
+                rna2_nla_failed:
+                        - '(rna2_strand=="+") & (rna2_start_nla_left>=-5) & (rna2_start_nla_left<=0)'
+                        - '(rna2_strand=="+") & (rna2_start_nla_right>=0) & (rna2_start_nla_right<=1)'
+                        - '(rna2_strand=="-") & (rna2_end_nla_left>=-5) & (rna2_end_nla_left<=0)'
+                        - '(rna2_strand=="-") & (rna2_end_nla_right>=0) & (rna2_end_nla_right<=1)'
+                rna1_nla_failed:
+                        - '(rna1_strand=="+") & (rna1_start_nla_left>=-5) & (rna1_start_nla_left<=0)'
+                        - '(rna1_strand=="+") & (rna1_start_nla_right>=0) & (rna1_start_nla_right<=1)'
+                        - '(rna1_strand=="-") & (rna1_end_nla_left>=-5) & (rna1_end_nla_left<=0)'
+                        - '(rna1_strand=="-") & (rna1_end_nla_right>=0) & (rna1_end_nla_right<=1)'
+
+# Understanding the distance filtration for NlaIII example:
+# # For mappings on positive RNA strand (+):
+# -5  CATGN|->N
+# -4   CATG|->NN
+# -3    CAT|->GNN
+# -2     CA|->TGNN
+# -1      C|->ATGNN
+#  0       |->CATGNN
+#  1       |->NCATGN
+# # For mappings on negative RNA strand (-)
+# -5       |->NCATGN
+# -4       |->CATGNN
+# -3      C|->ATGNN
+# -2     CA|->TGNN
+# -1    CAT|->GNN
+#  0   CATG|->NN
+#  1  CATGN|->N
+
+        # Pattern for filtering the relevant chromosomes:
+        canonical_chromosomes: "chr[0-9,X,Y]|chr[0-9][0-9]"
+
+        additional_filters:
+                RNAsDirectionPassed: "(rna2_chr==rna1_chr) & (rna2_strand!=rna1_strand)"
+                RNADNASamePos: "(dna_chr==rna2_chr) & (dna_strand!=rna2_strand) & (np.abs(dna_start-rna2_end)<=1)"
+                # Filter 1: Read is not PCR duplication
+                F1_notDup: "(is_notPCRdup==1)"
+                # Filter 2: there is a bridge in the read, with last AG letters, it is not cut by the quality filter
+                F2_goodBridge: "((has_nobridge==0) & (has_GA==1))"
+                # Filter 3: Reverse read starts with GGG
+                F3_goodGGG: "(has_noggg==0)"
+                # Filter 4: DNA length 18-20
+                F4_goodDNAlength: "((dna_R1_len_notrim>=18)&(dna_R1_len_notrim<=20))"
+                # Filter 5: RNA is >= 14 bp before trimming and RNA1 >= 14 bp
+                F5_goodRNAlength: "((rna1_R1_len_notrim>=14)&(rna2_R2_len_notrim>=14))"
+                # Filter 6: Trimming passed
+                F6_passedTrimming: "((trimF>0)&(trimR>0))"
+                # Filter 6a: Trimmed segments are > 14 bp
+                F6a_passedTrimming_strict: "(dna_R1_len_trim_adjusted>=18)&(dna_R1_len_trim_adjusted<=20)&(rna1_R1_len_trim_adjusted>=14)&(rna2_R2_len_trim_adjusted>=14)"
+                # Filter 7: All three segments are uniquely mapped to the canonical chrms
+                F7_uniqueCanonical: "(dna_is_not_multi & rna1_is_not_multi & rna2_is_not_multi & dna_is_mapped & rna1_is_mapped & rna2_is_mapped & dna_chr_canonical & rna1_chr_canonical & rna2_chr_canonical)"
+                F7a_RNAsameChr: "(rna1_chr==rna2_chr)"
+                F7b_RNAoppositeStrands: "(rna1_strand!=rna2_strand)"
+                # Filter 8a: Same pos of DNA and RNA
+                F8a_notRNADNASamePos: "(RNADNASamePos==0)"
+                # Filter 8b: Confirm absence of NlaIII and MmeI influence on RNA
+                F8b_RNAnotDigested: "((rna1_nla_failed==0) & (rna2_nla_failed==0) & (rna2_mme_failed==0))"
+                # Filter 9: RNA1 and RNA distance is small enough
+                F9_closeRNA: "np.abs(rna2_start-rna1_start)<1e5"
+
+                # Applying sequential filters, similar ones were used in the supplementary table for RedC paper:
+                V0:  "(np.ones(len(F1_notDup)))"
+                V1:  "(F1_notDup)"
+                V2:  "(F1_notDup & F2_goodBridge)"
+                V3:  "(V2 & F3_goodGGG)"
+                V4:  "(V3 & F4_goodDNAlength)"
+                V35: "(V3 & F5_goodRNAlength)"
+                V5:  "(V4 & F5_goodRNAlength)"
+                V24: "(V2 & F4_goodDNAlength)"
+                V25: "(V2 & F5_goodRNAlength)"
+                V6:  "(V5 & F6_passedTrimming)"
+                V6a: "(V5 & F6a_passedTrimming_strict)"
+                V7:  "(V5 & F6_passedTrimming & F6a_passedTrimming_strict & F7_uniqueCanonical)"
+                V7a: "(V7 & F7a_RNAsameChr)"
+                V7b: "(V7 & F7a_RNAsameChr & F7b_RNAoppositeStrands)"
+                V8a: "(V7b & F8a_notRNADNASamePos)"
+                V8b: "(V7b & F8a_notRNADNASamePos & F8b_RNAnotDigested)"
+                V9:  "(V8b & F9_closeRNA)"
+
+# Report the sum over the following columns:
+report_stats:
+        - V0
+        - V1
+        - V2
+        - V3
+        - V4
+        - V5
+        - V35
+        - V24
+        - V25
+        - V6
+        - V6a
+        - V7
+        - V7a
+        - V7b
+        - V8a
+        - V8b
+        - V9
+
+# Output table with filtered reads:
+final_table:
+        create_final_table: true
+        # You may specify one or multiple tables for different filters and sets of output columns.
+        # Syntax:
+        # table_name:
+        #    filter: "filter_name"
+        #    header: "<list-of-columns>"
+        resulting_table1:
+                filter: "V9"
+                header: "id rna1_chr rna1_start rna1_end rna1_strand rna1_cigar rna2_chr rna2_start rna2_end rna2_strand rna2_cigar dna_chr dna_start dna_end dna_strand dna_cigar"
+        # Demonstration of alternative table structure. Note that this table will be huge and useless for real data:
+        resulting_table2:
+                filter: "V1"
+                header: "id seqR1 seqR2"
+
+# Storage of intermediary and final files:
+output:
+        dirs:
+                genome: 'results/genome/'
+                fastq: 'results/fastq/'
+                table: 'results/table/'
+                cindex: 'results/cindex/'
+                cout: 'results/cout/'
+                filtered_fastq: 'results/filtered_fastq/'
+                sam: 'results/sam/'
+                bed: 'results/bed/'
+                hdf5: 'results/hdf5/'
+                stats: 'results/stats/'
+                final_table: 'results/final_table/'

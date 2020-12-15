@@ -1,0 +1,16 @@
+name: redc-env
+channels:
+    - conda-forge
+    - defaults
+    - bioconda
+dependencies:
+    - python=3.7
+    - hisat2
+    - trimmomatic
+    - fastuniq
+    - biopython
+    - bedtools
+    - numpy
+    - h5py
+    - pandas
+    - pyfaidx
