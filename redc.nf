@@ -1327,7 +1327,7 @@ if (params.final_table.create_final_table){
 
     header = "${header}".split()
     res = {}
-    for col in header:
+    for col in header+["${filter}"]:
         try:
             res[col] = f_filt[col][()]
         except Exception as e:
@@ -1340,9 +1340,10 @@ if (params.final_table.create_final_table){
             return "+"
         return "-"
 
+    indexes = np.where(res["${filter}"])[0]
     with open("${library}.${chunk}.${table_name}.tsv", "w") as outfile:
         outfile.write( "\\t".join(header)+"\\n" )
-        for i in range(len(res[header[0]])):
+        for i in indexes:
             line = [res[col][i] if isinstance(res[col][i], str) else
                     strand(res[col][i]) if 'strand' in col else
                     res[col][i].decode() if isinstance(res[col][i], np.bytes_) else
