@@ -1282,7 +1282,7 @@ for f in ${files_str}:
         res = tmp.copy()
     else:
         res += tmp
-res.to_csv("${library}.stats.txt", sep='\t', header=False, index=False)
+res.to_csv("${library}.stats.txt", sep='\t', header=False, index=True)
         """
 }
 
