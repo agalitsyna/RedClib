@@ -28,8 +28,8 @@ Cons: none detected
 
 ## System requirements
 
-1. You need a system supporting nextflow. For example, you can create conda environment with nextflow, 
-   which will contain everything needed for redc-nf:
+1. You need a system supporting nextflow pipelines. For example, you can create conda environment with nextflow, 
+   which will contain redc-nf dependencies:
 
 ```
 conda env create -n redc-nf -f environment.yml 

@@ -43,10 +43,17 @@ def align_pairwise  = new File("bin/align_pairwise")
 def fasta2bin = new File("bin/fasta2bin")
 def fastq2bin = new File("bin/fastq2bin")
 def trimmomatic = new File("bin/Trimmomatic-0.39/trimmomatic-0.39.jar")
-if (!align_universal.exists()||!align_pairwise.exists()||
-    !fasta2bin.exists()||!fastq2bin.exists()||!trimmomatic.exists()) {
-    "bash bin/prepare_binaries.sh"
+def missing_executables = ((!align_universal.exists()) || (!align_pairwise.exists()) ||
+    (!fasta2bin.exists()) || (!fastq2bin.exists()) || (!trimmomatic.exists()))
+
+def preprocessingCmd = ""
+if (missing_executables) {
+    preprocessingCmd = "bash ./bin/prepare_binaries.sh"
 }
+
+Channel.from(
+    preprocessingCmd.execute().text
+).into{PREPROCESSING_TO_RNA; PREPROCESSING}
 
 ///////////////////////////
 /* Running the processes */
@@ -170,13 +177,15 @@ if (check_restriction) {
 /*   PREPARE RNA ANNOTATION   */
 ////////////////////////////////
 
-GENOME_RNA_ANNOT_NAME = params.rna_annotation.rna_annotation_name
+Channel.from(params.rna_annotation.rna_annotation_name)
+       .combine(PREPROCESSING_TO_RNA).set{GENOME_RNA_ANNOT_NAME}
+
 process prepare_rna_annot{
     tag "${rna_annot_name}"
     storeDir getOutputDir('genome')
 
     input:
-    val(rna_annot_name) from GENOME_RNA_ANNOT_NAME
+    set val(rna_annot_name), val(preprocessing_output) from GENOME_RNA_ANNOT_NAME
 
     output:
     file "${rna_annot_name}.spliced_genes.txt" into GENOME_SPLICESITES
@@ -407,7 +416,7 @@ Input fastq files with reads and files with oligos are indexed first, and then p
 
 LIB_OLIGOS_RAW = Channel.from(
     params.input.oligos.collect{k, v ->  [k, v, file(v)]}
-    )
+    ).combine(PREPROCESSING)
 
 process index_oligos{
     tag "oligo:${oligo}"
@@ -415,7 +424,7 @@ process index_oligos{
     storeDir getOutputDir('cindex')
 
     input:
-    set val(oligo), input_oligo, file(input_oligo_fa) from LIB_OLIGOS_RAW
+    set val(oligo), input_oligo, file(input_oligo_fa), val(preprocessing_output) from LIB_OLIGOS_RAW
 
     output:
     set oligo, "${oligo}.bin" into LIB_OLIGOS_CINDEX
@@ -921,8 +930,10 @@ if (dna_extension.size()>0) {
     }
 }
 
+GENOME_SPLICESITES.into{GENOME_SPLICESITES_RNA1; GENOME_SPLICESITES_RNA2}
+
 /* Map RNA1 */
-LIB_SUBSTR_RNA1.combine(GENOME_INDEX_FOR_RNA1)
+LIB_SUBSTR_RNA1.combine(GENOME_INDEX_FOR_RNA1).combine(GENOME_SPLICESITES_RNA1)
     .set{LIB_FOR_RNA1_MAPPING}
 
 process map_rna1{
@@ -931,8 +942,7 @@ process map_rna1{
     storeDir getOutputDir('sam')
 
     input:
-    set val(library), val(chunk), file(input_rna1), val(index_pref), file(genome_index) from LIB_FOR_RNA1_MAPPING
-    file(known_splicesites) from GENOME_SPLICESITES
+    set val(library), val(chunk), file(input_rna1), val(index_pref), file(genome_index), file(known_splicesites) from LIB_FOR_RNA1_MAPPING
 
     output:
     set library, chunk, "${library}.${chunk}.rna1.sam" into LIB_SAM_RNA1
@@ -946,7 +956,7 @@ process map_rna1{
 }
 
 /* Map RNA2 */
-LIB_SUBSTR_RNA2.combine(GENOME_INDEX_FOR_RNA2)
+LIB_SUBSTR_RNA2.combine(GENOME_INDEX_FOR_RNA2).combine(GENOME_SPLICESITES_RNA2)
     .set{LIB_FOR_RNA2_MAPPING}
 
 process map_rna2{
@@ -955,8 +965,7 @@ process map_rna2{
     storeDir getOutputDir('sam')
 
     input:
-    set val(library), val(chunk), file(input_rna2), val(index_pref), file(genome_index) from LIB_FOR_RNA2_MAPPING
-    file(known_splicesites) from GENOME_SPLICESITES
+    set val(library), val(chunk), file(input_rna2), val(index_pref), file(genome_index), file(known_splicesites) from LIB_FOR_RNA2_MAPPING
 
     output:
     set library, chunk, "${library}.${chunk}.rna2.sam" into LIB_SAM_RNA2
@@ -1288,7 +1297,7 @@ You can request one or several files with different information in params.final_
 
 if (params.final_table.create_final_table){
     Channel.fromList(
-        tables_list = params.final_table.collect{ k, v -> [k, v['filter'], v['header']]}
+        tables_list = params.final_table.tables.collect{ k, v -> [k, v['filter'], v['header']]}
         ).set{LIST_TABLES}
 
     LIB_FILTERS_TABLE.combine(LIST_TABLES).set{LIB_FOR_WRITING}
