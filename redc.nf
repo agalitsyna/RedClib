@@ -81,9 +81,9 @@ process download_genome{
     if (auto_download) {
         """
         wget http://hgdownload.cse.ucsc.edu/goldenPath/${assembly}/bigZips/${assembly}.fa.gz -O ${assembly}.fa.gz
-        gzip -d ${assembly}.fa.gz
+        bgzip -d -@ ${task.cpus} ${assembly}.fa.gz
         faidx ${assembly}.fa -i chromsizes > ${assembly}.chromsizes.txt
-        hisat2-build ${assembly}.fa ${assembly}.fa
+        hisat2-build -p ${task.cpus} ${assembly}.fa ${assembly}.fa
         """
     }
     else {
@@ -108,7 +108,7 @@ process download_genome{
         def unpackGenomeCmd = ""
         if (isGZ(fasta_file)){
             unpackGenomeCmd = """
-                gzip -d ${assembly}.fa.gz
+                bgzip -d -@ ${task.cpus} ${assembly}.fa.gz
             """
         }
 
@@ -135,7 +135,7 @@ process download_genome{
         suffix_list = [".1.ht2", ".2.ht2", ".3.ht2", ".4.ht2", ".5.ht2", ".6.ht2", ".7.ht2", ".8.ht2"]
         def getIndexCmd = ""
         if ((params.genome.get('index_prefix', '').size()==0) | (isURL(fasta_file))) {
-            getIndexCmd = "hisat2-build ${assembly}.fa ${assembly}.fa"
+            getIndexCmd = "hisat2-build -p ${task.cpus} ${assembly}.fa ${assembly}.fa"
         } else {
             for (suf in suffix_list) {
                 getIndexCmd = getIndexCmd + "cp ${params.genome.index_prefix}${suf} ${assembly}.fa${suf}; "
@@ -207,7 +207,7 @@ process prepare_rna_annot{
     def unpackRNAAnnot = ""
     if (isGZ(params.rna_annotation.genes_gtf)){
         unpackRNAAnnot = """
-            gzip -d ${rna_annot_name}.gtf.gz
+            bgzip -d -@ ${task.cpus} ${rna_annot_name}.gtf.gz
         """
     }
 
@@ -248,7 +248,7 @@ process split_fastq{
     set val(library), "${library}.*.1.fq", "${library}.*.2.fq" into LIB_SPLIT_FASTQ_RAW
 
     script:
-    def readCmd = (isGZ(input1)) ?  "gzip -dc" : "cat"
+    def readCmd = (isGZ(input1)) ?  "bgzip -dc -@ ${task.cpus}" : "cat"
 
     """
     ${readCmd} ${input_fq1} | split --suffix-length=3 -l ${chunksize} --numeric-suffixes=1 \

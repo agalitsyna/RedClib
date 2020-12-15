@@ -1,0 +1,9 @@
+.nextflow*
+pipeline_info/*
+work/*
+results/*
+bin/align_pairwise
+bin/align_universal
+bin/fasta2bin
+bin/fastq2bin
+bin/hisat2_extract_splice_sites.py
