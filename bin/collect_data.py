@@ -34,7 +34,7 @@ output_filename = argv[1]
 table_file, is_dup_file, trim_file, \
     bridge_file, br_err, ggg_file, \
     dna_len_file, rna1_len_file, rna2_len_file, \
-    dna_map_file_sam, dna_map_file_sam_nonla, rna1_map_file_sam, rna2_map_file_sam, \
+    dna_map_file_sam, dna_map_file_sam_nonextended, rna1_map_file_sam, rna2_map_file_sam, \
     dna_map_file, rna1_map_file, rna2_map_file = argv[2:18]
 
 renz_files = []
@@ -54,14 +54,14 @@ bridge_raw_file = raw_read_file(bridge_file,
                                 [3, 4, 5, 6],
                                 ['has_nobridge', 'bridge_nmm', 'bridge_start', 'bridge_end'],
                                 modifiers=[lambda x: int(x) for y in range(4)], header=1, bottom=1)
-update_hdf5(outfile, bridge_raw_file, int)
+update_hdf5(outfile, bridge_raw_file, {'has_nobridge':bool, 'bridge_nmm':int, 'bridge_start':int, 'bridge_end':int})
 del bridge_raw_file
 
 br_err_raw_file = raw_read_file(br_err,
                                 [2],
                                 ['has_GA'],
                                 modifiers=[lambda x: int(x)], header=0)
-update_hdf5(outfile, br_err_raw_file, int)
+update_hdf5(outfile, br_err_raw_file, bool)
 del br_err_raw_file
 
 trim_raw_file = raw_read_file(trim_file,
@@ -75,7 +75,7 @@ ggg_raw_file = raw_read_file(ggg_file,
                              [3, 5, 6],
                              ['has_noggg', 'ggg_start', 'ggg_end'],
                              modifiers=[lambda x: int(x) for y in range(3)], header=1, bottom=1)
-update_hdf5(outfile, ggg_raw_file, int)
+update_hdf5(outfile, ggg_raw_file, {'has_noggg':bool, 'ggg_start':int, 'ggg_end':int})
 del ggg_raw_file
 
 dna_len_raw_file = raw_read_file(dna_len_file,
@@ -130,7 +130,7 @@ dna_map_raw_file_inferred = \
 
 del dna_map_raw_file_inferred['id']
 update_hdf5(outfile, dna_map_raw_file_inferred,
-            {'dna_is_mapped': int, 'dna_is_not_multi': int, 'dna_chr': 'S8', 'dna_cigar': 'S20'})
+            {'dna_is_mapped': bool, 'dna_is_not_multi': bool, 'dna_chr': 'S8', 'dna_cigar': 'S20'})
 outfile.create_dataset('dna_nlen', data=np.array( \
     [np.sum([int(m[0]) if m[1] == 'N' else 0 for m in re.findall(r'(\d+)([A-Z]{1})', x)]) for x in
      dna_map_raw_file_inferred['dna_cigar']]))
@@ -148,7 +148,7 @@ rna2_map_raw_file_inferred = \
                                     'rna2_cigar': ''})
 del rna2_map_raw_file_inferred['id']
 update_hdf5(outfile, rna2_map_raw_file_inferred,
-            {'rna2_is_mapped': int, 'rna2_is_not_multi': int, 'rna2_chr': 'S8', 'rna2_cigar': 'S20'})
+            {'rna2_is_mapped': bool, 'rna2_is_not_multi': bool, 'rna2_chr': 'S8', 'rna2_cigar': 'S20'})
 outfile.create_dataset('rna2_nlen', data=np.array( \
     [np.sum([int(m[0]) if m[1] == 'N' else 0 for m in re.findall(r'(\d+)([A-Z]{1})', x)]) for x in
      rna2_map_raw_file_inferred['rna2_cigar']]))
@@ -166,13 +166,13 @@ rna1_map_raw_file_inferred = \
                        default_dct={'rna1_is_mapped': 0, 'rna1_is_not_multi': 0, 'rna1_chr': '-', 'rna1_cigar': ''})
 del rna1_map_raw_file_inferred['id']
 update_hdf5(outfile, rna1_map_raw_file_inferred,
-            {'rna1_is_mapped': int, 'rna1_is_not_multi': int, 'rna1_chr': 'S8', 'rna1_cigar': 'S20'})
+            {'rna1_is_mapped': bool, 'rna1_is_not_multi': bool, 'rna1_chr': 'S8', 'rna1_cigar': 'S20'})
 outfile.create_dataset('rna1_nlen', data=np.array(
     [np.sum([int(m[0]) if m[1] == 'N' else 0 for m in re.findall(r'(\d+)([A-Z]{1})', x)]) for x in
      rna1_map_raw_file_inferred['rna1_cigar']]))
 del rna1_map_raw_file_inferred, rna1_map_raw_file
 
-dna_map_raw_file_nonla = raw_read_file(dna_map_file_sam_nonla,
+dna_map_raw_file_nonextended = raw_read_file(dna_map_file_sam_nonextended,
                                  [1, 2, -1, 3, 6],
                                  ['id', 'dna_nonextended_is_mapped', 'dna_nonextended_is_not_multi', 'dna_nonextended_chr',
                                   'dna_nonextended_cigar'],
@@ -180,15 +180,15 @@ dna_map_raw_file_nonla = raw_read_file(dna_map_file_sam_nonla,
                                             str, str], header=0, comment="@")
 
 dna_map_raw_file_inferred = \
-    reconstruct_by_ids(dna_map_raw_file_nonla, 'id', raw_file['id'],
+    reconstruct_by_ids(dna_map_raw_file_nonextended, 'id', raw_file['id'],
                        default_dct={'dna_nonextended_is_mapped': 0, 'dna_nonextended_is_not_multi': 0, 'dna_nonextended_chr': '-',
                                     'dna_nonextended_cigar': ''})
 
 del dna_map_raw_file_inferred['id']
 update_hdf5(outfile, dna_map_raw_file_inferred,
-            {'dna_nonextended_is_mapped': int, 'dna_nonextended_is_not_multi': int, 'dna_nonextended_chr': 'S8',
+            {'dna_nonextended_is_mapped': bool, 'dna_nonextended_is_not_multi': bool, 'dna_nonextended_chr': 'S8',
              'dna_nonextended_cigar': 'S20'})
-del dna_map_raw_file_inferred, dna_map_raw_file_nonla
+del dna_map_raw_file_inferred, dna_map_raw_file_nonextended
 
 # Reading extended bed file:
 dna_map_raw_file = raw_read_file(dna_map_file,

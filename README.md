@@ -15,7 +15,7 @@ types and reveals transcription dynamics.
 Nucleic Acids Research.
 ```
 
-The initial pipeline (RedClib) was implemented in Python and was hard to scale. 
+The initial version of the pipeline (RedClib) was implemented in Python. It was hard to scale. 
 From now on, we support the **nextflow pipeline redc-nf**. 
 
 Pros:
@@ -24,7 +24,7 @@ Pros:
   - No need to re-run from scratch due to nextflow [resume](https://www.nextflow.io/blog/2019/demystifying-nextflow-resume.html) functionality. 
   - You can switch off unneded processing steps. 
 
-Cons: none detected
+Cons: none detected.
 
 ## System requirements
 
@@ -56,9 +56,12 @@ you may want to check that the results are the same as we provide in `test/` fol
 4. Check out the results of mapping and annotation of your RNA-DNA contacts. 
    In case of troubles, visit and improve our [issues page](https://github.com/agalitsyna/RedClib/issues).
 
-## RedClib description
+## RedC-nf documentation
 
-This is outdated pipeline description of RedClib, but might provide some hints on the inner 
+- [RedC-nf filters](https://github.com/agalitsyna/RedClib/blob/redc-nextflow/docs/filters.rst)
+- [RedC-nf processes](https://github.com/agalitsyna/RedClib/blob/redc-nextflow/docs/processes.rst)
+
+Also, take a look at the outdated description of RedClib, but might provide some hints on the inner 
 structure of redc-nf pipeline: 
 
 <img src="img/RedC_pipeline.png"

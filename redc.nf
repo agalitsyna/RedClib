@@ -31,7 +31,7 @@ String parseChunkPair(left_file, right_file) {
 
 def check_restriction = params.run.get('check_restriction', 'false').toBoolean()
 def dna_extension = params.run.get('dna_extension', '')
-def auto_download = params.genome.get('auto_download', 'false').toBoolean()
+def auto_download = params.genome.get('auto_download', 'true').toBoolean()
 def available_renz = []
 
 ////////////////////////////
@@ -63,7 +63,7 @@ Channel.from(
 /*   PREPARE THE GENOME   */
 ////////////////////////////
 
-GENOME_ASSEMBLY = params.genome.assembly_name
+GENOME_ASSEMBLY = params.genome.get('assembly_name', 'genome')
 process download_genome{
     tag "${assembly}"
     storeDir getOutputDir('genome')
@@ -177,7 +177,7 @@ if (check_restriction) {
 /*   PREPARE RNA ANNOTATION   */
 ////////////////////////////////
 
-Channel.from(params.rna_annotation.rna_annotation_name)
+Channel.from(params.rna_annotation.get('rna_annotation_name', 'rna'))
        .combine(PREPROCESSING_TO_RNA).set{GENOME_RNA_ANNOT_NAME}
 
 process prepare_rna_annot{
@@ -541,6 +541,7 @@ LIB_TABLE_FASTQ_FOR_GA
     .map{ [it[0], it[1], file(it[2]), file(it[5])]  }
     .set{ LIB_FOR_GA }
 
+
 process check_GA{
     tag "library:${library} chunk:${chunk}"
 
@@ -553,9 +554,14 @@ process check_GA{
     set library, chunk, "${library}.${chunk}.GA.txt" into LIB_MAPPED_GA
 
     script:
-
+    def checkGACmd=""
+    if (params.run.get('check_GA', true)) {
+        checkGACmd="check_oligo_presence.py ${table_fq} ${cout_br_for} ${library}.${chunk}.GA.txt"
+    } else {
+        checkGACmd="awk '{print NR-1\"\\t0\"}' ${table_fq} > ${library}.${chunk}.GA.txt"
+    }
     """
-    check_oligo_presence.py ${table_fq} ${cout_br_for} ${library}.${chunk}.GA.txt
+    ${checkGACmd}
     """
 }
 
@@ -1185,18 +1191,14 @@ process collect_data{
 }
 
 def restriction_patterns = params.filters.restriction
-                   .collect{k, v -> k+":"+"("+v.join(") | (")+")"}.join("\n")
+                   .collect{k, v -> k+":"+"("+v.join(") | (")+")"}.join("\\n")
                    .replaceAll(/"\+"/, "1")
                    .replaceAll(/"-"/, "0")
 def additional_patterns = params.filters.additional_filters
-                   .collect{k, v -> k+":"+v}.join("\n")
-patterns = [restriction_patterns, additional_patterns].join("\n")
-file(params.output.dirs.hdf5).mkdir()
-patterns_file = file(params.output.dirs.hdf5+'filters.txt')
-patterns_file.write(patterns)
-Channel.from( file(patterns_file) ).set{ FILTERS }
+                   .collect{k, v -> k+":"+v}.join("\\n")
+patterns = [restriction_patterns, additional_patterns].join("\\n")
 
-LIB_COLLECTED.combine(FILTERS).combine(GENOME_CHROMSIZES).set{LIB_COLLECTED_FOR_FILTERS}
+LIB_COLLECTED.combine(GENOME_CHROMSIZES).set{LIB_COLLECTED_FOR_FILTERS}
 
 process collect_filters{
         tag "library:${library} ${chunk}"
@@ -1204,7 +1206,7 @@ process collect_filters{
         storeDir getOutputDir('hdf5')
 
         input:
-        set val(library), val(chunk), file(input), file(filters), file(genome_chromsizes) from LIB_COLLECTED_FOR_FILTERS
+        set val(library), val(chunk), file(input), file(genome_chromsizes) from LIB_COLLECTED_FOR_FILTERS
 
         output:
         set library, chunk, "${library}.${chunk}.data.hdf5", "${library}.${chunk}.filters.hdf5" into LIB_FILTERS
@@ -1213,8 +1215,9 @@ process collect_filters{
         def chrom_pattern = params.filters.canonical_chromosomes
 
         """
+        printf '${patterns}' > filters.txt
         filter_data.py ${input} ${library}.${chunk}.filters.hdf5 \
-            ${genome_chromsizes} "${chrom_pattern}" ${filters}
+            ${genome_chromsizes} "${chrom_pattern}" filters.txt
         """
 }
 

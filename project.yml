@@ -21,7 +21,7 @@ input:
                 adaptor_reverse_short: /home/agalicina/soft/RedClib/data/oligos/rev_16.fasta
 
 genome:
-        assembly_name: mm9
+        assembly_name: hg19
 
         # If auto_download in on, the genome with assembly_name will be downloaded from UCSC,
         # the index will be build and the chromosome size calculated.
@@ -36,10 +36,10 @@ genome:
 
 rna_annotation:
         # We use RNA annotation from Gencode, it's custom name:
-        rna_annotation_name: mm9_refgene
+        rna_annotation_name: gencode19
 
         # Can be local file or URL:
-        genes_gtf: https://hgdownload.soe.ucsc.edu/goldenPath/mm9/bigZips/genes/mm9.refGene.gtf.gz
+        genes_gtf: ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_19/gencode.v19.chr_patch_hapl_scaff.annotation.gtf.gz
 
 protocol:
         read_length: 151
@@ -69,11 +69,14 @@ run:
         # Parameters for reads quality trimming:
         params_trimmomatic: "SLIDINGWINDOW:5:26 MINLEN:0"
 
-        # Length of RNA parts for the detection of overlap of forward/reverse read
+        # Length of RNA segments for the detection of overlap of forward/reverse read
         rna_complementary_length: 14
 
+        # Check presence of GA in the bridge:
+        check_GA: true
+
         # DNA extension (e.g. restriction site). Set to "" or remove if no restirction site extension is needed.
-        dna_extension: "AN"
+        dna_extension: "CATG"
 
         # Min size for DNA/RNA1/RNA2 part so that it's subjected to mapping:
         min_substring_size: 14
@@ -83,10 +86,8 @@ run:
         restriction_check:
                 dna:
                         - nla
-                        - dpn
                 dna_nonextended:
                         - nla
-                        - mse
                 rna1:
                         - nla
                         - mmep # Mme recognised on plus chain
@@ -101,12 +102,12 @@ run:
 ### List of available variables:
 # id, is_notPCRdup, seqR1, seqR1_len, seqR2, seqR2_len, trimF, trimR,
 # has_GA, has_nobridge, bridge_end, bridge_nmm, bridge_start, has_noggg, ggg_end, ggg_start,
-# dna_R1_len_notrim, dna_R1_len_trim, dna_R1_start, dna_R1_end, dna_R1_end_trim, 
-# dna_chr, dna_start, dna_end, dna_strand, dna_cigar, dna_is_mapped, dna_is_not_multi, dna_nlen, 
-# dna_noNla_chr, dna_noNla_is_mapped, dna_noNla_is_not_multi, dna_noNla_cigar,  
-# rna1_R1_start, rna1_R1_end, rna1_R1_end_trim, rna1_R1_len_notrim, rna1_R1_len_trim, 
-# rna1_chr, rna1_start, rna1_end, rna1_strand, rna1_cigar, rna1_is_mapped, rna1_is_not_multi, rna1_nlen, 
-# rna2_R2_start, rna2_R2_end, rna2_R2_end_trim, rna2_R2_len_notrim, rna2_R2_len_trim, 
+# dna_R1_len_notrim, dna_R1_len_trim, dna_R1_start, dna_R1_end, dna_R1_end_trim,
+# dna_chr, dna_start, dna_end, dna_strand, dna_cigar, dna_is_mapped, dna_is_not_multi, dna_nlen,
+# dna_noNla_chr, dna_noNla_is_mapped, dna_noNla_is_not_multi, dna_noNla_cigar,
+# rna1_R1_start, rna1_R1_end, rna1_R1_end_trim, rna1_R1_len_notrim, rna1_R1_len_trim,
+# rna1_chr, rna1_start, rna1_end, rna1_strand, rna1_cigar, rna1_is_mapped, rna1_is_not_multi, rna1_nlen,
+# rna2_R2_start, rna2_R2_end, rna2_R2_end_trim, rna2_R2_len_notrim, rna2_R2_len_trim,
 # rna2_chr, rna2_start, rna2_end, rna2_strand, rna2_cigar, rna2_is_mapped, rna2_is_not_multi, rna2_nlen
 #
 ### For restriction filters, the keys and renzymes are loaded from protocol.renz section of this file.
@@ -162,27 +163,27 @@ filters:
                 RNAsDirectionPassed: "(rna2_chr==rna1_chr) & (rna2_strand!=rna1_strand)"
                 RNADNASamePos: "(dna_chr==rna2_chr) & (dna_strand!=rna2_strand) & (np.abs(dna_start-rna2_end)<=1)"
                 # Filter 1: Read is not PCR duplication
-                F1_notDup: "(is_notPCRdup==1)"
+                F1_notDup: "(is_notPCRdup)"
                 # Filter 2: there is a bridge in the read, with last AG letters, it is not cut by the quality filter
-                F2_goodBridge: "((has_nobridge==0) & (has_GA==1))"
+                F2_goodBridge: "~has_nobridge & has_GA"
                 # Filter 3: Reverse read starts with GGG
-                F3_goodGGG: "(has_noggg==0)"
+                F3_goodGGG: "~has_noggg"
                 # Filter 4: DNA length 18-20
-                F4_goodDNAlength: "((dna_R1_len_notrim>=18)&(dna_R1_len_notrim<=20))"
+                F4_goodDNAlength: "(dna_R1_len_notrim>=18)&(dna_R1_len_notrim<=20)"
                 # Filter 5: RNA is >= 14 bp before trimming and RNA1 >= 14 bp
-                F5_goodRNAlength: "((rna1_R1_len_notrim>=14)&(rna2_R2_len_notrim>=14))"
+                F5_goodRNAlength: "(rna1_R1_len_notrim>=14)&(rna2_R2_len_notrim>=14)"
                 # Filter 6: Trimming passed
-                F6_passedTrimming: "((trimF>0)&(trimR>0))"
+                F6_passedTrimming: "(trimF>0)&(trimR>0)"
                 # Filter 6a: Trimmed segments are > 14 bp
                 F6a_passedTrimming_strict: "(dna_R1_len_trim_adjusted>=18)&(dna_R1_len_trim_adjusted<=20)&(rna1_R1_len_trim_adjusted>=14)&(rna2_R2_len_trim_adjusted>=14)"
-                # Filter 7: All three segments are uniquely mapped to the canonical chrms
-                F7_uniqueCanonical: "(dna_is_not_multi & rna1_is_not_multi & rna2_is_not_multi & dna_is_mapped & rna1_is_mapped & rna2_is_mapped & dna_chr_canonical & rna1_chr_canonical & rna2_chr_canonical)"
-                F7a_RNAsameChr: "(rna1_chr==rna2_chr)"
-                F7b_RNAoppositeStrands: "(rna1_strand!=rna2_strand)"
+                # Filter 7: All three segments are uniquely mapped to chromosomes
+                F7_uniqueCanonical: "dna_is_not_multi & rna1_is_not_multi & rna2_is_not_multi & dna_is_mapped & rna1_is_mapped & rna2_is_mapped & dna_chr_canonical & rna1_chr_canonical & rna2_chr_canonical"
+                F7a_RNAsameChr: "rna1_chr==rna2_chr"
+                F7b_RNAoppositeStrands: "rna1_strand!=rna2_strand"
                 # Filter 8a: Same pos of DNA and RNA
-                F8a_notRNADNASamePos: "(RNADNASamePos==0)"
+                F8a_notRNADNASamePos: "~RNADNASamePos"
                 # Filter 8b: Confirm absence of NlaIII and MmeI influence on RNA
-                F8b_RNAnotDigested: "((rna1_nla_failed==0) & (rna2_nla_failed==0) & (rna2_mme_failed==0))"
+                F8b_RNAnotDigested: "~rna1_nla_failed & ~rna2_nla_failed & ~rna2_mme_failed"
                 # Filter 9: RNA1 and RNA distance is small enough
                 F9_closeRNA: "np.abs(rna2_start-rna1_start)<1e5"
 
@@ -241,7 +242,7 @@ final_table:
                 # Demonstration of alternative table structure. Note that this table will be huge and useless for real data:
                 resulting_table2:
                         filter: "V1"
-                        header: "id seqR1 seqR2"
+                        header: "id V9 seqR1 seqR2"
 
 # Storage of intermediary and final files:
 output:
