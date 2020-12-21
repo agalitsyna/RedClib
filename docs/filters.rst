@@ -11,7 +11,7 @@ There are three types of filters in redc-nf:
 - additional filters (``filters.additional_filters``)
 
 **Filter for canonical chromosomes** is a regular expression to retain only chromosomes of interest.
-It should correspond to `python re module syntax <https://docs.python.org/3/library/re.html>`_ for regular expressions.
+It should correspond to :ref:`python re module syntax <https://docs.python.org/3/library/re.html>`_ for regular expressions.
 
 **Other redc-nf filters** are strings with Python syntax. These strings are  *expressions* that operate with *variables*. Each expression will be evaluated for each read in the dataset. The variables are the columns of redc-nf output hdf5 file.
 
@@ -98,7 +98,7 @@ These columns will be added:
 
 Examples of filters
 ------------------
-In project.yml file we provide the filters used in `original paper on RedC<https://doi.org/10.1093/nar/gkaa457>`_.
+In project.yml file we provide the filters used in :ref:`original paper on RedC<https://doi.org/10.1093/nar/gkaa457>`_.
 
 If you want to run custom output of redc-nf, you can design your own filters.
 
