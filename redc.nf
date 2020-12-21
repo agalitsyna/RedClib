@@ -251,9 +251,9 @@ process split_fastq{
     def readCmd = (isGZ(input1)) ?  "bgzip -dc -@ ${task.cpus}" : "cat"
 
     """
-    ${readCmd} ${input_fq1} | split --suffix-length=3 -l ${chunksize} --numeric-suffixes=1 \
+    ${readCmd} ${input_fq1} | split -l ${chunksize} --numeric-suffixes=1 \
         --additional-suffix=".1.fq" - ${library}.
-    ${readCmd} ${input_fq2} | split --suffix-length=3 -l ${chunksize} --numeric-suffixes=1 \
+    ${readCmd} ${input_fq2} | split -l ${chunksize} --numeric-suffixes=1 \
         --additional-suffix=".2.fq" - ${library}.
     """
 }
