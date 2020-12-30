@@ -168,7 +168,7 @@ if (check_restriction) {
         script:
         """
         detect_restriction_sites.py ${genome_fasta} ${renz} ${assembly}.${renz}.nonsorted.bed
-        bedtools sort -i ${assembly}.${renz}.nonsorted.bed > ${assembly}.${renz}.bed
+        sort -k1,1 -k2,2n --parallel=${task.cpus} ${assembly}.${renz}.nonsorted.bed > ${assembly}.${renz}.bed
         """
     }
 }
@@ -1080,54 +1080,17 @@ if (!check_restriction) {
 
         script:
         def renz_strand_key = (renz_strand=="+") ? "p" : (renz_strand=="-") ? "n" : ""
+        def renz_strand_sub = (renz_strand=="+") ? "+" : (renz_strand=="-") ? "-" : "+"
         def columns = [
             "${segment_name}_start_${renz_key}${renz_strand_key}_left",
             "${segment_name}_start_${renz_key}${renz_strand_key}_right",
             "${segment_name}_end_${renz_key}${renz_strand_key}_left",
             "${segment_name}_end_${renz_key}${renz_strand_key}_right"
             ]
-        def header = (["id"]+columns).join("\t")
-        def renz_read_Cmd = "cat "
-        if (renz_strand.size()>0) {
-            renz_read_Cmd = """awk 'BEGIN{OFS="\\t";}{if (\$6=="${renz_strand}") print \$0; }'"""
-        }
+        def header = (["id"]+columns).join(" ")
         """
-        # Closest from the left recognition site to the 5' mapping position of the segment
-        bedtools closest -id -D ref -k 1 -t first \
-            -a <(awk 'BEGIN{OFS="\\t";}{print \$1, \$2+1, \$2+1, \$4, \$5, \$6}' ${bed_file} | bedtools sort) \
-            -b <(${renz_read_Cmd} ${renz_file}) \
-            | awk '{print \$4, \$13}' > \
-            ${library}.${chunk}.${segment_name}_start_${renz_key}${renz_strand_key}_left.dist.txt
-
-        # Closest from the right recognition site to the 5' mapping position of the segment
-        bedtools closest -iu -io -D ref -k 1 -t first \
-            -a <(awk 'BEGIN{OFS="\\t";}{print \$1, \$2-1, \$2-1, \$4, \$5, \$6}' ${bed_file} | bedtools sort) \
-            -b <(${renz_read_Cmd} ${renz_file}) \
-            | awk '{print \$4, \$13}' > \
-            ${library}.${chunk}.${segment_name}_start_${renz_key}${renz_strand_key}_right.dist.txt
-
-        # Closest from the left recognition site to the 3' mapping position of the segment
-        bedtools closest -id -D ref -k 1 -t first \
-            -a <(awk 'BEGIN{OFS="\\t";}{print \$1, \$3+1, \$3+1, \$4, \$5, \$6}' ${bed_file} | bedtools sort) \
-            -b <(${renz_read_Cmd} ${renz_file}) \
-            | awk '{print \$4, \$13}' > \
-            ${library}.${chunk}.${segment_name}_end_${renz_key}${renz_strand_key}_left.dist.txt
-
-        # Closest from the left recognition site to the 3' mapping position of the segment
-        bedtools closest -iu -io -D ref -k 1 -t first \
-            -a <(awk 'BEGIN{OFS="\\t";}{print \$1, \$3-1, \$3-1, \$4, \$5, \$6}' ${bed_file} | bedtools sort) \
-            -b <(${renz_read_Cmd} ${renz_file}) \
-            | awk '{print \$4, \$13}' > \
-            ${library}.${chunk}.${segment_name}_end_${renz_key}${renz_strand_key}_right.dist.txt
-
         echo "${header}" > ${library}.${chunk}.${segment_name}.${renz_key}${renz_strand}.distances.txt
-        paste ${library}.${chunk}.${segment_name}_start_${renz_key}${renz_strand_key}_left.dist.txt \
-              ${library}.${chunk}.${segment_name}_start_${renz_key}${renz_strand_key}_right.dist.txt \
-              ${library}.${chunk}.${segment_name}_end_${renz_key}${renz_strand_key}_left.dist.txt \
-              ${library}.${chunk}.${segment_name}_end_${renz_key}${renz_strand_key}_right.dist.txt \
-              | awk '{print \$1, \$2, \$4, \$6, \$8}' >> \
-              ${library}.${chunk}.${segment_name}.${renz_key}${renz_strand}.distances.txt
-
+        get_closest_sites.py ${bed_file} ${renz_file} ${renz_strand_sub} ${library}.${chunk}.${segment_name}.${renz_key}${renz_strand}.distances.txt
         """
     }
 }

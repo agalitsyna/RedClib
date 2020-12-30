@@ -22,7 +22,7 @@ with open(file_output, 'w') as outf:
 
             while len(t) > 0:
                 readF = t.split()[2]
-                end_pos = int(br.split()[4])
+                print(br, t); end_pos = int(br.split()[4])
                 idx = br.split()[0]
                 if end_pos > len(readF):
                     ret = 0

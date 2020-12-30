@@ -185,7 +185,7 @@ filters:
                 # Filter 8b: Confirm absence of NlaIII and MmeI influence on RNA
                 F8b_RNAnotDigested: "~rna1_nla_failed & ~rna2_nla_failed & ~rna2_mme_failed"
                 # Filter 9: RNA1 and RNA distance is small enough
-                F9_closeRNA: "np.abs(rna2_start-rna1_start)<1e5"
+                F9_closeRNA: "np.abs(rna2_start-rna1_start)<1e4"
 
                 # Applying sequential filters, similar ones were used in the supplementary table for RedC paper:
                 V0:  "(np.ones(len(F1_notDup)))"
