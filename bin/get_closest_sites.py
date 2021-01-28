@@ -32,12 +32,18 @@ filename_rsites = argv[2]
 strand  = argv[3]
 outfile = argv[4]
 
-rsites = pd.read_csv(filename_rsites, header=None, sep='\t')
+try:
+  rsites = pd.read_csv(filename_rsites, header=None, sep='\t')
+except pd.errors.EmptyDataError:
+  rsites = pd.DataFrame(columns=np.arange(6))
 rsites.columns = ['chrom', 'start', 'end', 'name', '_', 'strand']
 rsites = rsites.loc[rsites.strand == strand, :].sort_values(['chrom', 'start'])
 rsites_grouped = rsites.groupby('chrom')
 
-bed_file = pd.read_csv(filename_bed, sep='\t', header=None)
+try:
+  bed_file = pd.read_csv(filename_bed, sep='\t', header=None)
+except pd.errors.EmptyDataError:
+  bed_file = pd.DataFrame(columns=np.arange(7))
 bed_file.columns = ['chrom', 'start', 'end', 'read_id', 'q', 'strand', 'cigar']
 
 chs = bed_file.chrom.values.astype(str)
