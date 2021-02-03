@@ -67,3 +67,11 @@ structure of redc-nf pipeline:
 <img src="img/RedC_pipeline.png"
      alt="RedC pipeline information"
      style="float: left; margin-right: 10px;" />
+
+## Notes: 
+
+- 30-01-2021: Nota that hisat2 output with defalt annotation of restriction sites depends on the reads order. 
+See issue [#222](https://github.com/DaehwanKimLab/hisat2/issues/222) of hisat on GitHub.
+Thus the results of redc-nf may vary for different chunk sizes. 
+If you want to have the same results for different chunk sizes, add `--no-temp-splicesite` option and remove `--novel-splicesite` annotation.
+This reduces the performance of splice sites detection and makes the results reproducible for runs with different chunk sizes. 
