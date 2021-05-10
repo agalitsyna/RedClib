@@ -8,6 +8,8 @@ input:
                 test:
                     - /home/agalicina/soft/RedClib/data/fastq/sample_R1_001.fastq.gz
                     - /home/agalicina/soft/RedClib/data/fastq/sample_R2_001.fastq.gz
+                redc-fibr:
+                    - sra:SRR10010324
 
         oligos: # Always plain fasta
                 # Bridge fasta has 1 record:
@@ -23,9 +25,9 @@ input:
 genome:
         assembly_name: hg19
 
-        # If auto_download in on, the genome with assembly_name will be downloaded from UCSC,
-        # the index will be build and the chromosome size calculated.
-        auto_download: true
+        # If auto_download_genome in on, download the genome with assembly_name from UCSC,
+        # build the index and calculate the chromosome sizes.
+        auto_download_genome: true
 
         # If auto_download is off, the local files will be used instead.
         # "fasta" and "chromsizes" can be URLs instead.
@@ -42,7 +44,9 @@ rna_annotation:
         genes_gtf: ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_19/gencode.v19.chr_patch_hapl_scaff.annotation.gtf.gz
 
 protocol:
-        read_length: 151
+        read_length: 
+                test:      151
+                redc-fibr: 125
 
         # Keys for loading restriction enzymes data:
         renz:
@@ -58,7 +62,7 @@ protocol:
 
 run:
         # Input fastq files are split into chunks with this number of reads per chunk:
-        chunksize: 5000
+        chunksize: 1000000
         # For real-life usage, values aroun 1e6 are optimal
         # The larger the chunk size, the more memory will be consumed.
         # With fine chunks, the merge step will take a long time.

@@ -9,7 +9,7 @@ The details are in our [NAR paper](https://doi.org/10.1093/nar/gkaa457) from 09 
 
 ```
 Gavrilov, A.A., Zharikova, A.A., Galitsyna, A.A., Luzhin, A.V., Rubanova, N.M., Golov, A.K., 
-Petrova, N.V., Logacheva, M.D., Kantidze, O.L., Ulianov, S.V. and Magnitov, M.D., 2020. 
+Petrova, N.V., Logacheva, M.D., Kantidze, O.L., Ulianov, S.V., Magnitov, M.D., Mironov, A.A., and Razin S.V. 2020. 
 Studying RNA–DNA interactome by Red-C identifies noncoding RNAs associated with various chromatin 
 types and reveals transcription dynamics. 
 Nucleic Acids Research.

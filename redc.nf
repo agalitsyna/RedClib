@@ -3,20 +3,44 @@
 // Run test project with:
 // nextflow redc.nf -params-file project.yml
 
-/* Useful Groovy methods */
+def helpMessage() {
+    log.info"""
+    RedC-nextflow is a pipeline to map RNA-DNA interactions in paired-end sequencing data.
 
+    Usage:
+    The typical command for launching the pipeline:
+      nextflow redc.nf -params-file project.yml
+
+    All the parameters should be listed in the project file.
+    The explanation is provided with the default example.
+    """.stripIndent()
+}
+
+// Show help message
+if (params.get('help', 'false').toBoolean()) {
+    helpMessage()
+    exit 0
+}
+
+/* Useful Groovy methods */
+// Get the full path of the output directory
 String getOutputDir(output_type) {
     new File(params.output.dirs.get(output_type, output_type)).getCanonicalPath()
 }
-
+// Return True if the file is URL
 Boolean isURL(line) {
     return (line.startsWith("http://") || line.startsWith("https://") || line.startsWith("ftp://"))
 }
-
+// Return True if the file is gzipped
 Boolean isGZ(line) {
     return (line.endsWith(".gz"))
 }
-
+// Return True if the file is sra
+Boolean isSRA(line) {
+    return (line.startsWith("sra:"))
+}
+// Parse forward (left) and reverse (right) pieces of the file,
+// assert that they correspond each other and return index
 String parseChunkPair(left_file, right_file) {
     chunk_left_idx  =  left_file.toString().tokenize('.')[-3]
     chunk_right_idx = right_file.toString().tokenize('.')[-3]
@@ -31,12 +55,12 @@ String parseChunkPair(left_file, right_file) {
 
 def check_restriction = params.run.get('check_restriction', 'false').toBoolean()
 def dna_extension = params.run.get('dna_extension', '')
-def auto_download = params.genome.get('auto_download', 'true').toBoolean()
+def auto_download_genome = params.genome.get('auto_download_genome', 'true').toBoolean()
 def available_renz = []
 
-////////////////////////////
-/*   PREPARE BIN FOLDER   */
-////////////////////////////
+/////////////////////////////////////
+/*   PREPARE FOLDER WITH BINARIES  */
+/////////////////////////////////////
 
 def align_universal = new File("bin/align_universal")
 def align_pairwise  = new File("bin/align_pairwise")
@@ -64,7 +88,7 @@ Channel.from(
 ////////////////////////////
 
 GENOME_ASSEMBLY = params.genome.get('assembly_name', 'genome')
-process download_genome{
+process DOWNLOAD_GENOME{
     tag "${assembly}"
     storeDir getOutputDir('genome')
 
@@ -78,7 +102,7 @@ process download_genome{
     set "${assembly}.fa", file("${assembly}.fa.*") into GENOME_INDEX
 
     script:
-    if (auto_download) {
+    if (auto_download_genome) {
         """
         wget http://hgdownload.cse.ucsc.edu/goldenPath/${assembly}/bigZips/${assembly}.fa.gz -O ${assembly}.fa.gz
         bgzip -d -@ ${task.cpus} ${assembly}.fa.gz
@@ -153,7 +177,7 @@ process download_genome{
 
 if (check_restriction) {
     LIST_RENZ = Channel.fromList(params.protocol.renz.collect{k, v -> [k, v]})
-    process restrict_genome{
+    process RESTRICT_GENOME{
         tag "${assembly} ${renz}"
         storeDir getOutputDir('genome')
 
@@ -180,7 +204,7 @@ if (check_restriction) {
 Channel.from(params.rna_annotation.get('rna_annotation_name', 'rna'))
        .combine(PREPROCESSING_TO_RNA).set{GENOME_RNA_ANNOT_NAME}
 
-process prepare_rna_annot{
+process PREPARE_RNA_ANNOTATION{
     tag "${rna_annot_name}"
     storeDir getOutputDir('genome')
 
@@ -218,39 +242,77 @@ process prepare_rna_annot{
     """
 }
 
-////////////////////////////////
-/*      PREPARE FASTQ FILE    */
-////////////////////////////////
+////////////////////////////////////////////////
+/*      PREPARE FASTQ FILES AND READ TABLE    */
+////////////////////////////////////////////////
 /*
-During this step, fastq files will be merged so that each line in the resulting table
-corresponds to a single read. This step is rather ugly and memory-consuming, but saves
-time for further processing for bash-only approach that I take throughout RedC processing.
+download fastq from SRA, split into chunks.
 */
 
-Channel.from(
-    params.input.fastq_paths.collect{k, v ->  [k, v[0], file(v[0]), v[1], file(v[1])]}
-    ).set{LIB_FASTQ}
-Channel.from(
-    params.input.fastq_paths.collect{k, v ->  [k, file(v[0]), file(v[1])]}
-    ).set{LIB_FASTQ_TO_FASTUNIQ}
+Channel.from(params.input.fastq_paths
+    .collect{k, v ->  [k, v]}
+    )
+    .branch{
+        for_download: isSRA(it[1][0])
+        local:       !isSRA(it[1][0])
+    }.set{FASTQ_PATHS}
 
-def chunksize = params.run.chunksize*4
+/*
+ * STEP 0: Download SRA
+ */
 
-process split_fastq{
+process DOWNLOAD_FASTQ {
     tag "library:${library}"
 
     storeDir getOutputDir('fastq')
 
     input:
-    set val(library), val(input1), file(input_fq1), val(input2), file(input_fq2) from LIB_FASTQ
+    tuple val(library), val(name) from FASTQ_PATHS.for_download
+
+    output:
+    tuple val(library), "${library}_1.fastq.gz", "${library}_2.fastq.gz" into DOWNLOADED
+
+    script:
+    def sra = ( name=~ /SRR\d+/ )[0]
+    """
+    fastq-dump ${sra} -Z --split-spot \
+                   | pyfilesplit --lines 4 \
+                     >(bgzip -c -@${task.cpus} > ${library}_1.fastq.gz) \
+                     >(bgzip -c -@${task.cpus} > ${library}_2.fastq.gz) \
+                     | cat
+    """
+
+}
+
+FASTQ_PATHS.local.map { it -> [ it[0], file(it[1][0]), file(it[1][1]) ] }
+    .concat(DOWNLOADED).into{ LIB_FASTQ; LIB_VIEW;
+                              LIB_FASTQ_TO_FASTUNIQ }
+
+//Channel.from(
+//    params.input.fastq_paths.collect{k, v ->  [k, v[0], file(v[0]), v[1], file(v[1])]}
+//    ).set{LIB_FASTQ}
+//Channel.from(
+//    params.input.fastq_paths.collect{k, v ->  [k, file(v[0]), file(v[1])]}
+//    ).set{LIB_FASTQ_TO_FASTUNIQ}
+//
+def chunksize = params.run.chunksize*4
+
+process SPLIT_FASTQ_INTO_CHUNKS{
+    tag "library:${library}"
+
+    storeDir getOutputDir('fastq')
+
+    input:
+    set val(library), path(input_fq1), path(input_fq2) from LIB_FASTQ
 
     output:
     set val(library), "${library}.*.1.fq", "${library}.*.2.fq" into LIB_SPLIT_FASTQ_RAW
 
     script:
-    def readCmd = (isGZ(input1)) ?  "bgzip -dc -@ ${task.cpus}" : "cat"
+    def readCmd = (isGZ(input_fq1.toString())) ?  "bgzip -dc -@ ${task.cpus}" : "cat"
 
     """
+    echo
     ${readCmd} ${input_fq1} | split -l ${chunksize} --numeric-suffixes=1 \
         --additional-suffix=".1.fq" - ${library}.
     ${readCmd} ${input_fq2} | split -l ${chunksize} --numeric-suffixes=1 \
@@ -270,7 +332,14 @@ LIB_SPLIT_FASTQ_RAW
            LIB_SPLIT_FASTQ_TO_TRIM;
            LIB_SPLIT_FASTQ_TO_CINDEX }
 
-process prepare_fastq{
+/*
+Merge fastq files into read table.
+Each line in the resulting table corresponds to a single read.
+This step saves time for further processing.
+Next, it will be processed with bash-only approach.
+*/
+
+process CREATE_READS_TABLE_CHUNKS{
     tag "library:${library} chunk:${chunk}"
 
     storeDir getOutputDir('table')
@@ -311,7 +380,7 @@ Two-step procedure:
 
 def cropped_length = params.run.fastuniq_crop
 
-process run_fastuniq{
+process DEDUP{
     tag "library:${library}"
 
     storeDir getOutputDir('table')
@@ -352,7 +421,7 @@ Trim reads by quality with trimmomatic.
 
 def params_trimmomatic = params.run.params_trimmomatic
 
-process run_trimmomatic{
+process TRIM_CHUNKS{
     tag "library:${library} chunk:${chunk}"
 
     storeDir getOutputDir('table')
@@ -381,7 +450,7 @@ LIB_TABLE_FASTQ_FOR_TRIM
     .map { it ->  [it[0], it[1], file(it[2]), file(it[3]), file(it[4]) ] }
     .set { LIB_FOR_GET_TRIM_OUTPUT }
 
-process get_trim_output{
+process CREATE_TRIM_TABLE_CHUNKS{
     tag "library:${library} chunk:${chunk}"
 
     storeDir getOutputDir('table')
@@ -418,7 +487,7 @@ LIB_OLIGOS_RAW = Channel.from(
     params.input.oligos.collect{k, v ->  [k, v, file(v)]}
     ).combine(PREPROCESSING)
 
-process index_oligos{
+process INDEX_OLIGOS{
     tag "oligo:${oligo}"
 
     storeDir getOutputDir('cindex')
@@ -435,7 +504,7 @@ process index_oligos{
     """
 }
 
-process index_fastq{
+process INDEX_CHUNKS{
     tag "library:${library} chunk:${chunk}"
 
     storeDir getOutputDir('cindex')
@@ -456,33 +525,39 @@ process index_fastq{
 }
 
 def br_length = params.protocol.bridge_length
-def read_length = params.protocol.read_length
-// Set required oligos mapping and parameters of mapping calls:
-MAPPING_COLLECTION1 = Channel.from(
-    [oligo: "adaptor_forward", apply_to:1, right_shift:read_length-14,
-    n_primers:2, left_shift:-6, mismatch_general:1, report_len:20],
-    [oligo: "adaptor_reverse", apply_to:1, right_shift: read_length-14,
-    n_primers:2, left_shift:-6, mismatch_general:1, report_len:20],
-    [oligo: "adaptor_reverse_short", apply_to:1, right_shift:read_length-14,
-    n_primers:1, left_shift:0, mismatch_general:1, report_len:16],
-    [oligo: "bridge_forward", apply_to:1, right_shift:read_length-14,
-    n_primers:1, left_shift:0, mismatch_general:1, report_len:br_length],
-    [oligo: "bridge_reverse", apply_to:1, right_shift:read_length-14,
-    n_primers:1, left_shift:0, mismatch_general:1, report_len:br_length]
-)
 
-MAPPING_COLLECTION2 = Channel.from(
-    [oligo: "adaptor_forward", apply_to:2, right_shift:read_length-14,
+// Read length for each library
+Channel.fromList(params.protocol.read_length.collect{k, v -> [k, v]})
+    .into{ LIST_RLENGTHS_COLLECTION1; LIST_RLENGTHS_COLLECTION2}
+
+// def read_length = params.protocol.read_length
+
+// Set required oligos mapping and parameters of mapping calls:
+MAPPING_COLLECTION1 = LIST_RLENGTHS_COLLECTION1.flatMap { lib, read_length ->
+    [[library: lib, oligo: "adaptor_forward", apply_to:1, right_shift:read_length-14, read_length:read_length,
     n_primers:2, left_shift:-6, mismatch_general:1, report_len:20],
-    [oligo: "adaptor_reverse", apply_to:2, right_shift:read_length-14,
+    [library: lib, oligo: "adaptor_reverse", apply_to:1, right_shift: read_length-14, read_length:read_length,
     n_primers:2, left_shift:-6, mismatch_general:1, report_len:20],
-    [oligo: "bridge_forward", apply_to:2, right_shift:read_length-14,
+    [library: lib, oligo: "adaptor_reverse_short", apply_to:1, right_shift:read_length-14, read_length:read_length,
+    n_primers:1, left_shift:0, mismatch_general:1, report_len:16],
+    [library: lib, oligo: "bridge_forward", apply_to:1, right_shift:read_length-14, read_length:read_length,
     n_primers:1, left_shift:0, mismatch_general:1, report_len:br_length],
-    [oligo: "bridge_reverse", apply_to:2, right_shift:read_length-14,
+    [library: lib, oligo: "bridge_reverse", apply_to:1, right_shift:read_length-14, read_length:read_length,
+    n_primers:1, left_shift:0, mismatch_general:1, report_len:br_length]]
+}
+
+MAPPING_COLLECTION2 = LIST_RLENGTHS_COLLECTION2.flatMap { lib, read_length ->
+    [[library: lib, oligo: "adaptor_forward", apply_to:2, right_shift:read_length-14, read_length:read_length,
+    n_primers:2, left_shift:-6, mismatch_general:1, report_len:20],
+    [library: lib, oligo: "adaptor_reverse", apply_to:2, right_shift:read_length-14, read_length:read_length,
+    n_primers:2, left_shift:-6, mismatch_general:1, report_len:20],
+    [library: lib, oligo: "bridge_forward", apply_to:2, right_shift:read_length-14, read_length:read_length,
     n_primers:1, left_shift:0, mismatch_general:1, report_len:br_length],
-    [oligo: "ggg", apply_to:2, right_shift:3,
-    n_primers:1, left_shift:0, mismatch_general:0, report_len:3]
-)
+    [library: lib, oligo: "bridge_reverse", apply_to:2, right_shift:read_length-14, read_length:read_length,
+    n_primers:1, left_shift:0, mismatch_general:1, report_len:br_length],
+    [library: lib, oligo: "ggg", apply_to:2, right_shift:3, read_length:read_length,
+    n_primers:1, left_shift:0, mismatch_general:0, report_len:3]]
+}
 
 // Split channels for forward and reverse sides of read:
 LIB_OLIGOS_CINDEX.into { LIB_OLIGOS_CINDEX1; LIB_OLIGOS_CINDEX2 }
@@ -490,40 +565,42 @@ LIB_FASTQ_CINDEX.into { LIB_FASTQ_CINDEX1; LIB_FASTQ_CINDEX2;
                         LIB_FASTQ_CINDEX_FOR_RNACOMP;
                         LIB_FASTQ_CINDEX_FOR_SUBSTR}
 
+
 // 0          1            2       3     4          5          6
 // oligo_name olifo_cindex library chunk fq1_cindex fq2_cindex params
 LIB_OLIGOS_CINDEX1.combine(LIB_FASTQ_CINDEX1).combine(MAPPING_COLLECTION1)
-    .filter { it[0]==it[6]["oligo"] }
-    .map { it ->  [it[0], file(it[1]), it[2], it[3], file(it[4]), it[6].apply_to, it[6] ] }
+    .filter { it[0]==it[6]["oligo"] && it[2]==it[6]["library"] }
+    .map { it ->  [it[0], file(it[1]), it[2], it[3], file(it[4]), it[6].apply_to, it[6], it[6]["read_length"] ] }
     .set { LIB_FOR_OLIGOS_MAPPING1 }
 
 LIB_OLIGOS_CINDEX2.combine(LIB_FASTQ_CINDEX2).combine(MAPPING_COLLECTION2)
-    .filter { it[0]==it[6]["oligo"] }
-    .map { it ->  [it[0], file(it[1]), it[2], it[3], file(it[5]), it[6].apply_to, it[6] ] }
+    .filter { it[0]==it[6]["oligo"] && it[2]==it[6]["library"] }
+    .map { it ->  [it[0], file(it[1]), it[2], it[3], file(it[5]), it[6].apply_to, it[6], it[6]["read_length"]  ] }
     .set { LIB_FOR_OLIGOS_MAPPING2 }
 
 LIB_FOR_OLIGOS_MAPPING = LIB_FOR_OLIGOS_MAPPING1.concat(LIB_FOR_OLIGOS_MAPPING2)
 
+
+
 // Encoding the length of the reads for C program:
 def lengths = [101:15, 151:21, 125:18, 80:12, 133:19, 251:34]
-def seqlen_converted = lengths[ read_length ]
 
-process map_oligos{
+process SEARCH_OLIGOS_CHUNKS{
     tag "library:${library} chunk:${chunk} side:${apply_to} oligo:${oligo}"
 
     storeDir getOutputDir('cout')
 
     input:
     set val(oligo), file(oligo_cindex), val(library), val(chunk),
-        file(fq_cindex), val(apply_to), map_params from LIB_FOR_OLIGOS_MAPPING
+        file(fq_cindex), val(apply_to), val(map_params), val(read_length) from LIB_FOR_OLIGOS_MAPPING
 
     output:
-    set library, chunk, oligo, apply_to, "${library}.${chunk}.${apply_to}.${oligo}.txt" into LIB_MAPPED_OLIGOS
+    set library, chunk, oligo, apply_to, "${library}.${chunk}.${apply_to}.${oligo}.txt", read_length into LIB_MAPPED_OLIGOS
 
     script:
-
+    def seqlen_converted = lengths[ map_params.read_length ]
     """
-    align_universal ${oligo_cindex} ${fq_cindex} 1 ${read_length} ${seqlen_converted} \
+    align_universal ${oligo_cindex} ${fq_cindex} 1 ${map_params.read_length} ${seqlen_converted} \
       ${map_params.n_primers} ${map_params.left_shift} ${map_params.right_shift} \
       ${map_params.mismatch_general} 0 ${map_params.report_len} > ${library}.${chunk}.${apply_to}.${oligo}.txt
     """
@@ -541,8 +618,7 @@ LIB_TABLE_FASTQ_FOR_GA
     .map{ [it[0], it[1], file(it[2]), file(it[5])]  }
     .set{ LIB_FOR_GA }
 
-
-process check_GA{
+process CHECK_GA{
     tag "library:${library} chunk:${chunk}"
 
     storeDir getOutputDir('table')
@@ -565,6 +641,7 @@ process check_GA{
     """
 }
 
+
 ////////////////////////////////
 /*    CHECK COMPLEMENTARY     */
 ////////////////////////////////
@@ -582,11 +659,11 @@ LIB_TABLE_FASTQ_FOR_RNACOMP
     .filter{
         it[0]==it[6] && it[1]==it[7] && it[4]==1 && it[10]==2
     }.map{
-        [it[0], it[1], file(it[2]), file(it[5]), file(it[11]) ]
+        [it[0], it[1], file(it[2]), file(it[5]), file(it[11]), it[12] ]
     }.combine(LIB_FASTQ_CINDEX_FOR_RNACOMP, by:[0,1])
     .set { LIB_FOR_RNACOMP }
 
-process check_rna_complementary{
+process CHECK_COMPLEMENTARY_RNA_CHUNKS{
     tag "library:${library} chunk:${chunk}"
 
     storeDir getOutputDir('cout')
@@ -594,7 +671,7 @@ process check_rna_complementary{
     input:
     set val(library), val(chunk), file(table_fq),
         file(cout_br_for), file(cout_ggg_rev),
-        file(cindex_fq1), file(cindex_fq2) from LIB_FOR_RNACOMP
+        file(cindex_fq1), file(cindex_fq2), read_length from LIB_FOR_RNACOMP
 
     output:
     set library, chunk, "${library}.${chunk}.1.rnacomp.txt", "${library}.${chunk}.2.rnacomp.txt" into LIB_COUT_RNACOMP
@@ -675,7 +752,6 @@ LIB_TRIMTABLE.into {
     LIB_TRIMTABLE_FOR_COLLECT
 }
 
-
 /* Get DNA substrings */
 
 LIB_MAPPED_OLIGOS_FOR_SUBSTR_DNA
@@ -690,13 +766,13 @@ LIB_TABLE_FASTQ_FOR_SUBSTR_DNA
     .combine(LIB_TRIMTABLE_FOR_SUBSTR_DNA, by:[0,1])
     .map{
         library, chunk, table_fastq,
-        oligo1, side1, file_oligo1,
-        oligo2, side2, file_oligo2,
+        oligo1, side1, file_oligo1, read_length1,
+        oligo2, side2, file_oligo2, read_length2,
         trim_table
-        -> [library, chunk, table_fastq, file_oligo1, file_oligo2, trim_table]
+        -> [library, chunk, table_fastq, file_oligo1, file_oligo2, trim_table, read_length1]
     }.set{ LIB_FOR_SUBSTR_DNA }
 
-process get_dna_substrings{
+process GET_DNA_FRAGMENTS_CHUNKS{
     tag "library:${library} chunk:${chunk}"
 
     storeDir getOutputDir('filtered_fastq')
@@ -704,7 +780,7 @@ process get_dna_substrings{
     input:
     set val(library), val(chunk), file(fastq_table),
         file(cout_r1_br_for), file(cout_r1_for),
-        file(trim_table) from LIB_FOR_SUBSTR_DNA
+        file(trim_table), val(read_length) from LIB_FOR_SUBSTR_DNA
 
     output:
     set library, chunk, "${library}.${chunk}.dna_nonextended.fq" into LIB_SUBSTR_DNA
@@ -767,13 +843,13 @@ LIB_TABLE_FASTQ_FOR_SUBSTR_RNA1
     .combine(LIB_TRIMTABLE_FOR_SUBSTR_RNA1, by:[0,1])
     .map{
         library, chunk, table_fastq,
-        oligo1, side1, file_oligo1,
-        oligo2, side2, file_oligo2,
+        oligo1, side1, file_oligo1, read_length1,
+        oligo2, side2, file_oligo2, read_length2,
         rnacomp1, rnacomp2, trim_table
-        -> [library, chunk, table_fastq, file_oligo1, file_oligo2, rnacomp1, trim_table]
+        -> [library, chunk, table_fastq, file_oligo1, file_oligo2, rnacomp1, trim_table, read_length1]
     }.set{ LIB_FOR_SUBSTR_RNA1 }
 
-process get_rna1_substrings{
+process GET_RNA1_FRAGMENTS_CHUNKS{
     tag "library:${library} chunk:${chunk}"
 
     storeDir getOutputDir('filtered_fastq')
@@ -781,7 +857,7 @@ process get_rna1_substrings{
     input:
     set val(library), val(chunk), file(fastq_table),
         file(cout_r1_br_for), file(cout_r1_rev),
-        file(cout_compl_1), file(trim_table) from LIB_FOR_SUBSTR_RNA1
+        file(cout_compl_1), file(trim_table), val(read_length) from LIB_FOR_SUBSTR_RNA1
 
     output:
     set library, chunk, "${library}.${chunk}.rna1.fq" into LIB_SUBSTR_RNA1
@@ -829,14 +905,14 @@ LIB_TABLE_FASTQ_FOR_SUBSTR_RNA2
     .combine(LIB_TRIMTABLE_FOR_SUBSTR_RNA2, by:[0,1])
     .map{
         library, chunk, table_fastq,
-        oligo1, side1, file_oligo1,
-        oligo2, side2, file_oligo2,
-        oligo3, side3, file_oligo3,
+        oligo1, side1, file_oligo1, read_length1,
+        oligo2, side2, file_oligo2, read_length2,
+        oligo3, side3, file_oligo3, read_length3,
         rnacomp1, rnacomp2, trim_table
-        -> [library, chunk, table_fastq, file_oligo1, file_oligo2, file_oligo3, rnacomp2, trim_table]
+        -> [library, chunk, table_fastq, file_oligo1, file_oligo2, file_oligo3, rnacomp2, trim_table, read_length1]
     }.set{ LIB_FOR_SUBSTR_RNA2 }
 
-process get_rna2_substrings{
+process GET_RNA2_FRAGMENTS_CHUNKS{
     tag "library:${library} chunk:${chunk}"
 
     storeDir getOutputDir('filtered_fastq')
@@ -844,7 +920,7 @@ process get_rna2_substrings{
     input:
     set val(library), val(chunk), file(fastq_table),
         file(cout_r2_ggg), file(cout_r2_for), file(cout_r2_br_rev),
-        file(cout_compl_2), file(trim_table) from LIB_FOR_SUBSTR_RNA2
+        file(cout_compl_2), file(trim_table), val(read_length) from LIB_FOR_SUBSTR_RNA2
 
     output:
     set library, chunk, "${library}.${chunk}.rna2.fq" into LIB_SUBSTR_RNA2
@@ -895,7 +971,7 @@ GENOME_INDEX.into{
 LIB_SUBSTR_DNA.combine(GENOME_INDEX_FOR_DNA)
     .set{LIB_FOR_DNA_MAPPING}
 
-process map_dna_nonextended{
+process MAP_DNA_NONEXTENDED_CHUNKS{
     tag "library:${library} chunk:${chunk}"
 
     storeDir getOutputDir('sam')
@@ -917,7 +993,7 @@ if (dna_extension.size()>0) {
     LIB_SUBSTR_DNA_EXT.combine(GENOME_INDEX_FOR_DNA_EXT)
         .set{LIB_FOR_DNA_MAPPING_EXT}
 
-    process map_dna_extended{
+    process MAP_DNA_EXTENDED_CHUNKS{
         tag "library:${library} chunk:${chunk}"
 
         storeDir getOutputDir('sam')
@@ -942,7 +1018,7 @@ GENOME_SPLICESITES.into{GENOME_SPLICESITES_RNA1; GENOME_SPLICESITES_RNA2}
 LIB_SUBSTR_RNA1.combine(GENOME_INDEX_FOR_RNA1).combine(GENOME_SPLICESITES_RNA1)
     .set{LIB_FOR_RNA1_MAPPING}
 
-process map_rna1{
+process MAP_RNA1_CHUNKS{
     tag "library:${library} chunk:${chunk}"
 
     storeDir getOutputDir('sam')
@@ -965,7 +1041,7 @@ process map_rna1{
 LIB_SUBSTR_RNA2.combine(GENOME_INDEX_FOR_RNA2).combine(GENOME_SPLICESITES_RNA2)
     .set{LIB_FOR_RNA2_MAPPING}
 
-process map_rna2{
+process MAP_RNA2_CHUNKS{
     tag "library:${library} chunk:${chunk}"
 
     storeDir getOutputDir('sam')
@@ -1009,7 +1085,7 @@ if (dna_extension.size()>0){
         .concat(LIB_SAM_RNA2_FOR_BED.map{ [it[0], it[1], "rna2", file(it[2]) ] }).set{LIB_SAM2BED}
 }
 
-process sam2bed{
+process SAM2BED_CHUNKS{
     tag "library:${library} chunk:${chunk} ${segment_name}"
 
     storeDir getOutputDir('bed')
@@ -1066,7 +1142,7 @@ if (!check_restriction) {
             [library, chunk, segment_left, file(bed_file), renz_key, renz_strand, file(renz_file)]
          }.set{ LIB_FOR_RESTR_RUN }
 
-    process annotate_renzymes{
+    process ANNOTATE_RENZYMES_CHUNKS{
         tag "library:${library} ${chunk} ${segment_name} ${renz_key}${renz_strand}"
 
         storeDir getOutputDir('table')
@@ -1136,7 +1212,7 @@ IDS_FASTUNIQ
     .combine(LIB_DISTANCES_FOR_COLLECT, by:[0,1])
     .map{ v -> [ v[0], v[1], v[2..-2]+v[-1] ] }.set{ LIB_COLLECT }
 
-process collect_data{
+process COLLECT_DATA_CHUNKS{
         tag "library:${library} ${chunk}"
 
         storeDir getOutputDir('hdf5')
@@ -1163,7 +1239,7 @@ patterns = [restriction_patterns, additional_patterns].join("\\n")
 
 LIB_COLLECTED.combine(GENOME_CHROMSIZES).set{LIB_COLLECTED_FOR_FILTERS}
 
-process collect_filters{
+process COLLECT_FILTERS_CHUNKS{
         tag "library:${library} ${chunk}"
 
         storeDir getOutputDir('hdf5')
@@ -1196,7 +1272,7 @@ Then we merge stats on chunks into a single file.
 
 def stats_list = params.report_stats.collect()
 
-process write_stats{
+process WRITE_STATS_CHUNKS{
         tag "library:${library} chunk:${chunk}"
 
         storeDir getOutputDir('stats')
@@ -1224,7 +1300,7 @@ f.close()
 
 FILES_STATS.groupTuple(by:0).set{FILES_STATS_FOR_MERGE}
 
-process merge_stats{
+process MERGE_STATS{
         tag "library:${library}"
 
         storeDir getOutputDir('stats')
@@ -1268,7 +1344,7 @@ if (params.final_table.create_final_table){
 
     LIB_FILTERS_TABLE.combine(LIST_TABLES).set{LIB_FOR_WRITING}
 
-    process write_table{
+    process WRITE_FINAL_TABLE_CHUNKS{
             tag "library:${library} chunk:${chunk} table:${table_name}"
 
             storeDir getOutputDir('final_table')
@@ -1322,7 +1398,7 @@ if (params.final_table.create_final_table){
 
     FILES_TABLE.groupTuple(by:[0,2]).set{FILES_TABLE_FOR_MERGE}
 
-    process merge_table{
+    process MERGE_TABLE{
             tag "library:${library} table:${table_name}"
 
             storeDir getOutputDir('final_table')
