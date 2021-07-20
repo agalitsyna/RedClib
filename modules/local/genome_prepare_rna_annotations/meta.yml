@@ -1,0 +1,31 @@
+name: genome_prepare_rna_annotations
+description: Prepare splicesites based on gtf file
+keywords:
+    - genome
+    - reference
+    - splicesites
+
+tools:
+  - hisat2_extract_splice_sites.py:
+      description: Extraction of splice sites for hisat2
+
+input:
+  - assembly:
+      type: string
+      description: String with genome name
+
+output:
+  - genome_splicesites:
+      type: file
+      description: Output splicesites
+      pattern: "*.spliced_genes.txt"
+  - genome_rna_annotation:
+      type: file
+      description: Output gtf file
+      pattern: "*.gtf"
+  - version:
+      type: file
+      description: File containing software version
+      pattern: "*.{version.txt}"
+authors:
+    - "@agalitsyna"

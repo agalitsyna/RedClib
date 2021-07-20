@@ -1,0 +1,35 @@
+name: restrict_genome
+description: Restrict genomic FASTA as a given restriction enzyme
+keywords:
+    - fasta
+    - genome
+    - restriction
+
+tools:
+  - python:
+      description: Pytohon 3.7
+  - biopython:
+      description: Python package to work with biological sequences
+
+input:
+  - assembly:
+      type: string
+      description: Name of the assembly
+  - renzyme:
+      type: string
+      description: Name of the restriction enzyme
+  - genome_fasta:
+      type: file
+      description: FASTA file with genomic sequence
+      pattern: "*.fa"
+
+output:
+  - meta:
+      type: map
+      description: Restruction enzyme name and the file
+  - version:
+      type: file
+      description: File containing software version
+      pattern: "*.{version.txt}"
+authors:
+    - "@agalitsyna"

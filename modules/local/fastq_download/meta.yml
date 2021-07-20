@@ -1,0 +1,25 @@
+name: fastq_download
+description: Download FASTQ from SRA
+keywords:
+    - fastq
+    - download
+
+tools:
+  - fastq-dump:
+      description: fastq-dump downloads files from SRA
+
+input:
+  - meta:
+      type: map
+      description: Groovy Map containing sample information
+
+output:
+  - fastq:
+      type: map
+      description: Groovy Map containing metadata and reads files
+  - version:
+      type: file
+      description: File containing software version
+      pattern: "*.{version.txt}"
+authors:
+    - "@agalitsyna"

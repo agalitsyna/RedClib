@@ -38,9 +38,9 @@ for seq_record in fasta_records:
         rsites.append(
             pd.DataFrame({'chrom': chrom, 'site': minus, 'strand': '-'})
         )
-        positive = np.setdiff1d(enzyme.results, minus)
+        plus = np.setdiff1d(enzyme.results, minus)
         rsites.append(
-            pd.DataFrame({'chrom': chrom, 'site': positive, 'strand': '+'})
+            pd.DataFrame({'chrom': chrom, 'site': plus, 'strand': '+'})
         )
 
 rsites = pd.concat(rsites).sort_values(['chrom', 'site']).reset_index(drop=True)
@@ -52,13 +52,17 @@ def detect_recognition_start(row):
         return row.site + enzyme.fst3 - 1
 
 # Retrieving actual position of recognition site
-rsites.loc[:, 'start'] = rsites.apply(detect_recognition_start, axis=1).astype(int)
+idx_pos = (rsites.strand=="+")
+rsites.loc[idx_pos,'start'] = rsites.loc[idx_pos,'site'] - enzyme.fst5 - 1
+idx_neg = (rsites.strand=="-")
+rsites.loc[idx_neg,'start'] = rsites.loc[idx_neg,'site'] + enzyme.fst3 - 1
+
 rsites.loc[:, 'end'] = rsites.start.astype(int)
-rsites.loc[:, 'dump1'] = [f'{enzyme_name}_{idx+1}' for idx in rsites.index]
-rsites.loc[:, 'dump2'] = '.'
+rsites.loc[:, 'name'] = [f'{enzyme_name}_{idx+1}' for idx in rsites.index]
+rsites.loc[:, 'foo'] = '.'
 
 rsites.to_csv(output_file,
               sep='\t',
-              columns=['chrom', 'start', 'end', 'dump1', 'dump2', 'strand'],
+              columns=['chrom', 'start', 'end', 'name', 'foo', 'strand'],
               header=False,
               index=False)

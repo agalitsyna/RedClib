@@ -1,0 +1,38 @@
+name: trimmomatic
+description: Trim sequences by quality or other parameters
+keywords:
+    - fastq
+    - trimming
+
+tools:
+  - trimmomatic:
+      description: TRIMMOMATICS trims reads by various parameters (read quality, adapters etc.)
+
+input:
+  - meta:
+      type: map
+      description: |
+          Groovy Map containing sample information
+          e.g. [ id:'test', single_end:false ]
+  - reads:
+      type: file
+      description: |
+          List of input FastQ files of size 1 and 2 for single-end and paired-end data,
+          respectively.
+
+output:
+  - meta:
+      type: map
+      description: |
+          Groovy Map containing sample information
+          e.g. [ id:'test', single_end:false ]
+  - trimmed:
+      type: file
+      description: Output trimmed files
+      pattern: "*.trimmed.fq"
+  - version:
+      type: file
+      description: File containing software version
+      pattern: "*.{version.txt}"
+authors:
+    - "@agalitsyna"

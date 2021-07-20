@@ -1,0 +1,38 @@
+name: prepare_genome
+description: Prepare the genome, download or index, if needed.
+keywords:
+    - genome
+    - reference
+
+tools:
+  - hisat2-build:
+      description: Building the genome
+  - faidix:
+      description: Annotate the genome, e.g. retrieve chromosome sizes
+  - bgzip:
+      description: Compression of file
+
+input:
+  - assembly:
+      type: string
+      description: String with genome name
+
+output:
+  - genome_fasta:
+      type: file
+      description: Output FASTA with genome
+      pattern: "*.fa"
+  - genome_chromsizes:
+      type: file
+      description: Chromosome sizes of the genome
+      pattern: "*.chromsizes.txt"
+  - genome_index:
+      type: files
+      description: Genome index files build by hisat2-align
+      pattern: "*.fa.*"
+  - version:
+      type: file
+      description: File containing software versions
+      pattern: "*.{version.txt}"
+authors:
+    - "@agalitsyna"
