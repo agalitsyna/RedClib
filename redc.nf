@@ -535,28 +535,28 @@ Channel.fromList(params.protocol.read_length.collect{k, v -> [k, v]})
 // Set required oligos mapping and parameters of mapping calls:
 MAPPING_COLLECTION1 = LIST_RLENGTHS_COLLECTION1.flatMap { lib, read_length ->
     [[library: lib, oligo: "adaptor_forward", apply_to:1, right_shift:read_length-14, read_length:read_length,
-    n_primers:2, left_shift:-6, mismatch_general:1, report_len:20],
+    n_primers:params.input.oligos_variants.adaptor_forward, left_shift:-6, mismatch_general:1, report_len:20],
     [library: lib, oligo: "adaptor_reverse", apply_to:1, right_shift: read_length-14, read_length:read_length,
-    n_primers:2, left_shift:-6, mismatch_general:1, report_len:20],
+    n_primers:params.input.oligos_variants.adaptor_reverse, left_shift:-6, mismatch_general:1, report_len:20],
     [library: lib, oligo: "adaptor_reverse_short", apply_to:1, right_shift:read_length-14, read_length:read_length,
-    n_primers:1, left_shift:0, mismatch_general:1, report_len:16],
+    n_primers:params.input.oligos_variants.adaptor_reverse_short, left_shift:0, mismatch_general:1, report_len:16],
     [library: lib, oligo: "bridge_forward", apply_to:1, right_shift:read_length-14, read_length:read_length,
-    n_primers:1, left_shift:0, mismatch_general:1, report_len:br_length],
+    n_primers:params.input.oligos_variants.bridge_forward, left_shift:0, mismatch_general:1, report_len:br_length],
     [library: lib, oligo: "bridge_reverse", apply_to:1, right_shift:read_length-14, read_length:read_length,
-    n_primers:1, left_shift:0, mismatch_general:1, report_len:br_length]]
+    n_primers:params.input.oligos_variants.bridge_reverse, left_shift:0, mismatch_general:1, report_len:br_length]]
 }
 
 MAPPING_COLLECTION2 = LIST_RLENGTHS_COLLECTION2.flatMap { lib, read_length ->
     [[library: lib, oligo: "adaptor_forward", apply_to:2, right_shift:read_length-14, read_length:read_length,
-    n_primers:2, left_shift:-6, mismatch_general:1, report_len:20],
+    n_primers:params.input.oligos_variants.adaptor_forward, left_shift:-6, mismatch_general:1, report_len:20],
     [library: lib, oligo: "adaptor_reverse", apply_to:2, right_shift:read_length-14, read_length:read_length,
-    n_primers:2, left_shift:-6, mismatch_general:1, report_len:20],
+    n_primers:params.input.oligos_variants.adaptor_reverse, left_shift:-6, mismatch_general:1, report_len:20],
     [library: lib, oligo: "bridge_forward", apply_to:2, right_shift:read_length-14, read_length:read_length,
-    n_primers:1, left_shift:0, mismatch_general:1, report_len:br_length],
+    n_primers:params.input.oligos_variants.bridge_forward, left_shift:0, mismatch_general:1, report_len:br_length],
     [library: lib, oligo: "bridge_reverse", apply_to:2, right_shift:read_length-14, read_length:read_length,
-    n_primers:1, left_shift:0, mismatch_general:1, report_len:br_length],
+    n_primers:params.input.oligos_variants.bridge_reverse, left_shift:0, mismatch_general:1, report_len:br_length],
     [library: lib, oligo: "ggg", apply_to:2, right_shift:3, read_length:read_length,
-    n_primers:1, left_shift:0, mismatch_general:0, report_len:3]]
+    n_primers:params.input.oligos_variants.ggg, left_shift:0, mismatch_general:0, report_len:3]]
 }
 
 // Split channels for forward and reverse sides of read:
@@ -651,17 +651,20 @@ Extract RNA regions and check for presence at the opposite side of read in a pai
 
 // Resulting Channel structure: library, chunk, fastq_table, mapped_oligo1, mapped_oligo2
 LIB_TABLE_FASTQ_FOR_RNACOMP
-    .combine(LIB_MAPPED_OLIGOS_FOR_RNACOMP, by: [0, 1])
+    .combine(LIB_MAPPED_OLIGOS_FOR_RNACOMP, by: [0, 1]) //Channel structure: library, chunk, fastq_table, oligo_name, forward-reverse-flag, cout, readlen
     .branch {
         bridge_forward: it[3]=="bridge_forward"
         ggg: it[3]=="ggg"
-    }.combine()
+    }.combine()     //Channel structure: library1, chunk1, fastq_table1, oligo_name1, forward-reverse-flag1, cout1, readlen1, library2, chunk2, fastq_table2, oligo_name2, forward-reverse-flag2, cout2, readlen2
     .filter{
-        it[0]==it[6] && it[1]==it[7] && it[4]==1 && it[10]==2
-    }.map{
-        [it[0], it[1], file(it[2]), file(it[5]), file(it[11]), it[12] ]
-    }.combine(LIB_FASTQ_CINDEX_FOR_RNACOMP, by:[0,1])
+        it[0]==it[7] && it[1]==it[8] && it[4]==1 && it[11]==2
+    }
+    .map{
+        [it[0], it[1], file(it[2]), file(it[5]), file(it[12]), it[13] ]
+    }     //Channel structure: library1, chunk1, file(fastq_table1), file(cout1), file(cout2), readlen2
+    .combine(LIB_FASTQ_CINDEX_FOR_RNACOMP, by:[0,1])
     .set { LIB_FOR_RNACOMP }
+
 
 process CHECK_COMPLEMENTARY_RNA_CHUNKS{
     tag "library:${library} chunk:${chunk}"
@@ -670,8 +673,8 @@ process CHECK_COMPLEMENTARY_RNA_CHUNKS{
 
     input:
     set val(library), val(chunk), file(table_fq),
-        file(cout_br_for), file(cout_ggg_rev),
-        file(cindex_fq1), file(cindex_fq2), read_length from LIB_FOR_RNACOMP
+        file(cout_br_for), file(cout_ggg_rev), read_length,
+        file(cindex_fq1), file(cindex_fq2) from LIB_FOR_RNACOMP
 
     output:
     set library, chunk, "${library}.${chunk}.1.rnacomp.txt", "${library}.${chunk}.2.rnacomp.txt" into LIB_COUT_RNACOMP
@@ -681,7 +684,7 @@ process CHECK_COMPLEMENTARY_RNA_CHUNKS{
     def rna_complementary_length = params.run.rna_complementary_length
     def rna_comp_length_converted = ((rna_complementary_length+3).intdiv(8))+1
     def extraN = "N"*(500+3*rna_complementary_length)
-
+    def seqlen_converted = lengths[ read_length ]
     """
     # Get the complemetary regions
     paste <(awk '{print \$1, \$3, \$4}' ${table_fq}) \

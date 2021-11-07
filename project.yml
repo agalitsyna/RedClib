@@ -11,17 +11,24 @@ input:
                 redc-fibr:
                     - sra:SRR10010324
 
-        oligos: # Always plain fasta
+        oligos: # Paths to files with oligos
                 # Bridge fasta has 1 record:
                 bridge_forward: /home/agalicina/soft/RedClib/data/oligos/br_37_for.fasta
                 bridge_reverse: /home/agalicina/soft/RedClib/data/oligos/br_37_rev.fasta
                 # GGG fasta has 1 record:
                 ggg: /home/agalicina/soft/RedClib/data/oligos/ggg.fasta
-                # Adaptors files have 2 records:
+                # Adaptors files have 2 records for two variants of adaptors:
                 adaptor_forward: /home/agalicina/soft/RedClib/data/oligos/for_20.fasta
                 adaptor_reverse: /home/agalicina/soft/RedClib/data/oligos/rev_20.fasta
                 adaptor_reverse_short: /home/agalicina/soft/RedClib/data/oligos/rev_16.fasta
 
+        oligos_variants: # Numbers of records (variants) in the files with oligos
+                bridge_forward: 1 #3 # Modify this for multiple variants, e.g. br_37_for_variants.fasta
+                bridge_reverse: 1 #3
+                ggg: 1
+                adaptor_forward: 2
+                adaptor_reverse: 2
+                adaptor_reverse_short: 1
 genome:
         assembly_name: hg19
 
