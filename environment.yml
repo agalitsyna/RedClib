@@ -16,3 +16,4 @@ dependencies:
     - pyfaidx
     - htslib
     - coreutils=8.31
+    - cooler

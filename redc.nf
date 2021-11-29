@@ -97,7 +97,7 @@ process DOWNLOAD_GENOME{
 
     output:
     file "${assembly}.fa" into GENOME_FASTA
-    file "${assembly}.chromsizes.txt" into GENOME_CHROMSIZES
+    set file("${assembly}.chromsizes.txt"), assembly into GENOME_CHROMSIZES
     //file "${assembly}.fa.*" into GENOME_INDEX
     set "${assembly}.fa", file("${assembly}.fa.*") into GENOME_INDEX
 
@@ -1240,7 +1240,14 @@ def additional_patterns = params.filters.additional_filters
                    .collect{k, v -> k+":"+v}.join("\\n")
 patterns = [restriction_patterns, additional_patterns].join("\\n")
 
-LIB_COLLECTED.combine(GENOME_CHROMSIZES).set{LIB_COLLECTED_FOR_FILTERS}
+if (params.output.make_cooler) {
+    GENOME_CHROMSIZES.into{GENOME_CHROMSIZES_FOR_FILTERS; GENOME_CHROMSIZES_FOR_COOLER}
+    }
+else {
+    GENOME_CHROMSIZES.set{GENOME_CHROMSIZES_FOR_FILTERS}
+}
+
+LIB_COLLECTED.combine(GENOME_CHROMSIZES_FOR_FILTERS).set{LIB_COLLECTED_FOR_FILTERS}
 
 process COLLECT_FILTERS_CHUNKS{
         tag "library:${library} ${chunk}"
@@ -1248,7 +1255,7 @@ process COLLECT_FILTERS_CHUNKS{
         storeDir getOutputDir('hdf5')
 
         input:
-        set val(library), val(chunk), file(input), file(genome_chromsizes) from LIB_COLLECTED_FOR_FILTERS
+        set val(library), val(chunk), file(input), file(genome_chromsizes), val(assembly) from LIB_COLLECTED_FOR_FILTERS
 
         output:
         set library, chunk, "${library}.${chunk}.data.hdf5", "${library}.${chunk}.filters.hdf5" into LIB_FILTERS
@@ -1337,12 +1344,12 @@ res.to_csv("${library}.stats.txt", sep='\t', header=False, index=True)
 /*
 Write final tables from filters.hdf5 and data.hdf5 into text file.
 Then we merge chunks into a single file.
-You can request one or several files with different information in params.final_table.
+You can request one or several files with different information in params.output.
 */
 
-if (params.final_table.create_final_table){
+if (params.output.make_final_table){
     Channel.fromList(
-        tables_list = params.final_table.tables.collect{ k, v -> [k, v['filter'], v['header']]}
+        tables_list = params.output.tables.collect{ k, v -> [k, v['filter'], v['header']]}
         ).set{LIST_TABLES}
 
     LIB_FILTERS_TABLE.combine(LIST_TABLES).set{LIB_FOR_WRITING}
@@ -1410,7 +1417,7 @@ if (params.final_table.create_final_table){
             set val(library), val(chunk), val(table_name), file(files_stats) from FILES_TABLE_FOR_MERGE
 
             output:
-            set library, "${library}.${table_name}.tsv" into FILES_TABLE_MERGED
+            set library, table_name, "${library}.${table_name}.tsv" into FILES_TABLE_MERGED
 
             script:
             """
@@ -1419,6 +1426,43 @@ if (params.final_table.create_final_table){
             do
                 tail -n +2 \$FILE >> ${library}.${table_name}.tsv
             done
+            """
+    }
+}
+
+if (params.output.make_cooler) {
+
+    /* Create output channel for writing cooler: */
+    FILES_TABLE_MERGED.filter{ it[1] == params.output.cooler_properties.table_name }
+      .combine(GENOME_CHROMSIZES_FOR_COOLER)
+      .set{ TABLES_FOR_COOLER }
+
+    process WRITE_COOLER{
+            tag "library:${library}"
+
+            storeDir getOutputDir('cooler')
+
+            input:
+            set val(library),
+                val(table_name),
+                file(table),
+                file(chromsizes),
+                val(assembly) from TABLES_FOR_COOLER
+
+            output:
+            set library,
+                "${assembly}.${resolution}.bins.txt",
+                "${library}.${params.output.cooler_properties.resolution}.cool" into COOLERS
+
+            script:
+            resolution = params.output.cooler_properties.resolution
+            """
+            cooler makebins ${chromsizes} 1000 > ${assembly}.${resolution}.bins.txt
+            cooler cload pairs --no-symmetric-upper \
+              -c1 ${params.output.cooler_properties.c1} -c2 ${params.output.cooler_properties.c2} \
+              -p1 ${params.output.cooler_properties.p1} -p2 ${params.output.cooler_properties.p2} \
+              ${assembly}.${resolution}.bins.txt <(tail -n +2 $table) "${library}.${resolution}.cool"
+
             """
     }
 }

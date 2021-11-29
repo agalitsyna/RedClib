@@ -238,9 +238,8 @@ report_stats:
         - V9
 
 # Output table with filtered reads:
-final_table:
-        create_final_table: true
-
+output:
+        make_final_table: true
         tables:
                 # You may specify one or multiple tables for different filters and sets of output columns.
                 # Syntax:
@@ -254,9 +253,17 @@ final_table:
                 resulting_table2:
                         filter: "V1"
                         header: "id V9 seqR1 seqR2"
+        
+        make_cooler: true
+        cooler_properties:  # Describe what to use for coolers (required):
+                table_name: resulting_table1
+                resolution: 1000
+                c1: 2   # Column with chromosome name for RNA part
+                c2: 12  # Column with chromosome name for DNA part
+                p1: 3   # Column with start for RNA part
+                p2: 13  # Column with start for DNA part
 
-# Storage of intermediary and final files:
-output:
+        # Storage of intermediary and final files:
         dirs:
                 genome: 'results/genome/'
                 fastq: 'results/fastq/'
@@ -269,3 +276,4 @@ output:
                 hdf5: 'results/hdf5/'
                 stats: 'results/stats/'
                 final_table: 'results/final_table/'
+                cooler: 'results/cooler/'
