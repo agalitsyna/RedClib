@@ -114,7 +114,7 @@ workflow REDC {
 
     /* Start of the reads processing */
     TableChunks = TABLE_CONVERT(FastqChunks)
-    TrimmedChunks = TRIM(FastqChunks)
+    TrimmedChunks = FASTQ_TRIM(FastqChunks)
 
 
     /* Check for the presence of oligos with a custom script */
