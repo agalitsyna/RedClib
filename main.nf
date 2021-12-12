@@ -22,99 +22,109 @@ if (params.get('help', 'false').toBoolean()) {
     exit 0
 }
 
-// Check mandatory parameters
-if (params.input) { ch_input = file(params.input) } else { exit 1, 'Input samplesheet not specified!' }
-genome = params.get('genome', [:])
-if (params.genome.assembly) { assembly = params.genome.assembly } else { exit 1, 'Genome assembly is not specified!' }
-if (params.genome.genes_gtf) { genes_gtf = params.genome.genes_gtf } else { exit 1, 'Genome RNA annotation GTF is not specified!' }
+// Check required parameters
+if (params.input) { InputSamplesheet = file(params.input) } else { exit 1, 'Input samplesheet not specified!' }
+Genome = params.get('genome', [:])
+if (params.genome.assembly) { Assembly = params.genome.assembly } else { exit 1, 'Genome assembly is not specified!' }
+if (params.genome.genes_gtf) { GenesGtf = params.genome.genes_gtf } else { exit 1, 'Genome RNA annotation GTF is not specified!' }
 
 // Check optional parameters
 def chunksize = params.get('chunksize', 0)
-def dedup_crop_length = params.get('dedup_crop_length', 50)
+def dedup_crop = params.get('dedup_crop', 50)
+def trimmomatic_params = params.get('trimmomatic_params', '')
 
 include { INPUT_CHECK_DOWNLOAD } from './subworkflows/local/input_check' addParams( options: [:] )
 include { INPUT_SPLIT          } from './subworkflows/local/input_split' addParams( options: [chunksize: chunksize] )
 
-include { GENOME_PREPARE } from './modules/local/genome_prepare/main'  addParams( options: [args: [genome: [chromsizes: genome.get("chromsizes", ""), index_prefix: genome.get("index_prefix", ""), fasta: genome.get("fasta", "")], auto_download_genome: genome.get("auto_download_genome", true)] ] )
+include { GENOME_PREPARE } from './modules/local/genome_prepare/main'  addParams( options: [args: [
+                                                            genome: [chromsizes: Genome.get("chromsizes", ""),
+                                                            index_prefix: Genome.get("index_prefix", ""),
+                                                            fasta: Genome.get("fasta", "")],
+                                                            auto_download_genome: Genome.get("auto_download_genome", true)
+                                                            ] ] )
 include { GENOME_RESTRICT } from './modules/local/genome_restrict/main' addParams( options: [:])
-include { GENOME_PREPARE_RNA_ANNOTATIONS } from './modules/local/genome_prepare_rna_annotations/main' addParams( options: [args: [genes_gtf: genes_gtf, rna_annotation_suffix: genome.get('rna_annotation_suffix', '')]])
+include { GENOME_PREPARE_RNA_ANNOTATIONS } from './modules/local/genome_prepare_rna_annotations/main' addParams( options: [args: [
+                                                            genes_gtf: GenesGtf,
+                                                            rna_annotation_suffix: Genome.get('rna_annotation_suffix', '')
+                                                            ]])
 
-include { DEDUP } from './modules/local/dedup/main' addParams( options: [ args: [dedup_crop_length: dedup_crop_length]] )
 include { FASTQC } from './modules/nf-core/software/fastqc/main' addParams( options: [:] )
 include { TABLE_CONVERT } from './modules/local/table_convert/main' addParams( options: [:] )
-include { TRIM_TRIMMOMATIC} from './modules/local/trimmomatic/main' addParams( options: [args: [params_trimmomatic: params.get('params_trimmomatic', '')]])
+
+include { TRIMMOMATIC as FASTQ_CROP } from './modules/local/trimmomatic/main' addParams( options: [args: 'CROP:'+dedup_crop, suffix:'.crop', args2: [gzip: false]])
+include { FASTUNIQ as TABLE_FASTUNIQ} from './modules/local/fastuniq/main' addParams( options: [:] )
+
+include { TRIMMOMATIC as FASTQ_TRIM } from './modules/local/trimmomatic/main' addParams( options: [args: trimmomatic_params, suffix:'.trim', args2: [gzip: false]])
 include { HISAT2_ALIGN as HISAT2_ALIGN_RNA } from './modules/local/hisat2/main' addParams( options: [args:'--known-splicesite-infile', suffix:'.rna'] )
+
+include { BIN_ENCODE as BIN_OLIGOS } from './modules/local/bin_encode/main' addParams( options: [args: [mode: 'fasta']] ) // Bin input oligos from fasta file
+include { BIN_ENCODE as BIN_FASTQ }  from './modules/local/bin_encode/main' addParams( options: [args: [mode: 'fastq']] ) // Bin input fastq
 
 workflow REDC {
 
     /* Prepare input */
     // Check input FASTQ files
-    INPUT_CHECK_DOWNLOAD (
-            ch_input
-        )
-        .map {
-            meta, fastq ->
+    Fastq = INPUT_CHECK_DOWNLOAD(InputSamplesheet)
+        .map {meta, fastq ->
                 meta.id = meta.id.split('_')[0..-2].join('_')
                 [ meta, fastq ] }
-        .set { ch_fastq }
 
     // fastqc quality of the sequencing
-    FASTQC (
-        ch_fastq
-    )
+    FASTQC(Fastq)
 
     // deduplication of input sequences
-    DEDUP (
-        ch_fastq
-    )
+    FastqCropped = Fastq | FASTQ_CROP
+    Nodup = FastqCropped.fastq | TABLE_FASTUNIQ
 
-    // split input into chunks
-    if (chunksize) {
-        INPUT_SPLIT(
-                ch_fastq
-        ).set { ch_fastq_chunks }
-    } else {
-        ch_fastq_chunks = ch_fastq
-    }
+    // split input into chunks if chunksize was passed
+    FastqChunks = chunksize ? INPUT_SPLIT(Fastq) : Fastq
 
     /* Prepare genome and annotations */
     // Prepare genome (index, chromosome sizes and fasta)
-    GENOME_PREPARE (
-            assembly
-    )
-    hisat2_index = GENOME_PREPARE.out.genome_index
-    genome_fasta = GENOME_PREPARE.out.genome_fasta
+    GENOME_PREPARE(Assembly)
+    Hisat2Index = GENOME_PREPARE.out.genome_index
+    GenomeFasta = GENOME_PREPARE.out.genome_fasta
 
     // Restrict the genome
     if (params.get('check_restriction', false)) {
-        list_renzymes = Channel.fromList(params.protocol.renzymes)
-        GENOME_RESTRICT (
-            assembly,
-            list_renzymes,
-            genome_fasta
+        def RenzymesPreloaded = Genome.get('restricted', {})
+        Renzymes = Channel
+            .fromList(params.protocol.renzymes)
+            .map { it -> [ renzyme: it, assembly: Assembly] }
+            .branch {
+                it ->
+                    forRestriction : !RenzymesPreloaded.containsKey(it.renzyme) // Restrict only missing renzymes
+                        return it
+                    loaded: RenzymesPreloaded.containsKey(it.renzyme) // Load files if restriction is pre-computed
+                        return [it, file(RenzymesPreloaded[it.renzyme])]
+                      }
+        GENOME_RESTRICT(
+            Renzymes.forRestriction,
+            GenomeFasta
         )
+        GENOME_RESTRICT.out.genome_restricted
+        .mix( Renzymes.loaded )
+        .set { Restricted }
     }
 
-    // Get the splice sites
-    GENOME_PREPARE_RNA_ANNOTATIONS (
-        assembly
-    )
-    hisat2_splicesites = GENOME_PREPARE_RNA_ANNOTATIONS.out.genome_splicesites
+    // Get the splice sites by hisat2 script
+    GENOME_PREPARE_RNA_ANNOTATIONS(Assembly)
+    SpliceSites = GENOME_PREPARE_RNA_ANNOTATIONS.out.genome_splicesites
 
 
     /* Start of the reads processing */
+    TableChunks = TABLE_CONVERT(FastqChunks)
+    TrimmedChunks = TRIM(FastqChunks)
 
-    TABLE_CONVERT (
-        ch_fastq_chunks
-    )
 
-    TRIM_TRIMMOMATIC (
-        ch_fastq_chunks
-    )
+    /* Check for the presence of oligos with a custom script */
+    Oligos = Channel
+               .fromList(params.oligos.keySet())
+               . map { it -> [[id: it, single_end: true], file(params.oligos[it])] }
+    IndexOligos = BIN_OLIGOS(Oligos)
+    FastqOligos = BIN_FASTQ(FastqChunks)
+//    MappedOligos = OLIGOS_ALIGN(FastqOligos, IndexOligos)
 
-    //OLIGOS_ALIGNMENT (
-    //    ch_fastq_chunks
-    //)
 
     //OLIGOS_CHECK (
     //    ch_fastq_chunks

@@ -1,12 +1,15 @@
-name: trimmomatic
-description: Trim sequences by quality or other parameters
+name: module_name
+description: Purpose of the module
 keywords:
-    - fastq
-    - trimming
+    - draft
 
 tools:
-  - trimmomatic:
-      description: TRIMMOMATICS trims reads by various parameters (read quality, adapters etc.)
+  - tool1:
+      description: Purpose of the tool
+      homepage: http://...
+      documentation: http://...
+      doi: "..."
+      licence: ['MIT']
 
 input:
   - meta:
@@ -26,13 +29,14 @@ output:
       description: |
           Groovy Map containing sample information
           e.g. [ id:'test', single_end:false ]
-  - trimmed:
+  - fastq:
       type: file
-      description: Output trimmed files (gzipped or not)
-      pattern: "*.fastq*"
+      descrption: |
+          output file
   - version:
       type: file
       description: File containing software version
       pattern: "*.{version.txt}"
+
 authors:
     - "@agalitsyna"

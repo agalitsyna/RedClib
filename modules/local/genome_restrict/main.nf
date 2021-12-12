@@ -4,28 +4,28 @@ include { initOptions; saveFiles; getSoftwareName } from './functions'
 params.options = [:]
 options        = initOptions(params.options)
 
-def VERSION = '1.79'
-
 process GENOME_RESTRICT {
-    tag "$assembly $renzyme"
+    tag "$meta.assembly $meta.renzyme"
     label 'process_low'
     publishDir "${params.outdir}",
         mode: params.publish_dir_mode,
-        saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:renzyme, publish_by_meta:'') }
+        saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:'') }
 
-    conda (params.enable_conda ? "anaconda::python=3.7 conda-forge::numpy=1.21.0 conda-forge::pandas=1.2.5 conda-forge::biopython=1.79 bioconda::coreutils=8.25" : null)
+//    conda (params.enable_conda ? "anaconda::python=3.7 conda-forge::numpy=1.21.0 conda-forge::pandas=1.2.5 conda-forge::biopython=1.79 bioconda::coreutils=8.25" : null)
+    conda (params.enable_conda ? "conda-forge::numpy=1.21.0 conda-forge::pandas=1.2.5 conda-forge::biopython=1.79 bioconda::coreutils=8.25" : null)
 
     input:
-    val(assembly)
-    val(renzyme)
+    val(meta)
     file(genome_fasta)
 
     output:
-    tuple val(renzyme), path("${assembly}.${renzyme}.bed"), emit: genome_restricted
+    tuple val(meta), path("${meta.assembly}.${meta.renzyme}.bed"), emit: genome_restricted
     path  "*.version.txt"         , emit: version
 
     script:
     def software = getSoftwareName(task.process)
+    def assembly = meta['assembly']
+    def renzyme = meta['renzyme']
     """
     detect_restriction_sites.py ${genome_fasta} ${renzyme} ${assembly}.${renzyme}.nonsorted.bed
     sort -k1,1 -k2,2n --parallel=${task.cpus} ${assembly}.${renzyme}.nonsorted.bed > ${assembly}.${renzyme}.bed

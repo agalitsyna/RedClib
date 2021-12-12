@@ -1,12 +1,17 @@
-name: trimmomatic
-description: Trim sequences by quality or other parameters
+name: simple_encode
+description: Encode input DNA in binary code
 keywords:
-    - fastq
-    - trimming
+    - encode
+    - bin
+    - hashing
 
 tools:
-  - trimmomatic:
-      description: TRIMMOMATICS trims reads by various parameters (read quality, adapters etc.)
+  - simple_encode_fasta2bin:
+      description: Simple fasta2bin C code that encodes each input DNA nucleotide as a 2-bit code.
+      licence: ['MIT']
+  - simple_encode_fastq2bin:
+      description: Simple fastq2bin C code that encodes each input DNA nucleotide as a 2-bit code.
+      licence: ['MIT']
 
 input:
   - meta:
@@ -25,11 +30,10 @@ output:
       type: map
       description: |
           Groovy Map containing sample information
-          e.g. [ id:'test', single_end:false ]
-  - trimmed:
+          e.g. [ id:'test', single_end:false, mode: 'fasta|fastq']
+  - bin:
       type: file
-      description: Output trimmed files (gzipped or not)
-      pattern: "*.fastq*"
+      description: File containing encoded sequences
   - version:
       type: file
       description: File containing software version
