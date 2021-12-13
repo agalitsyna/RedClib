@@ -120,10 +120,10 @@ workflow REDC {
     TrimmedChunks = FASTQ_TRIM(FastqChunks)
 
 
-    /* Check for the presence of oligos with a custom script */
+    /* Check for the presence of oligos with a custom Rabin-Karp-based algorithm */
     Oligos = Channel
                .fromList(params.oligos.keySet())
-               .map { it -> [it, params.oligos[it]] }
+               .map { it -> [it, params.oligos[it]] } // construct meta for each oligo
                .map { oligo_name, meta ->
                        meta.single_end = true
                        meta.id = oligo_name
@@ -133,8 +133,21 @@ workflow REDC {
     IndexOligos = BIN_OLIGOS(Oligos)
     IndexFastqs = BIN_FASTQ(FastqChunks)
 
-    MappedOligos = OLIGOS_ALIGN(IndexOligos.bin, IndexFastqs.bin)
+    MappedOligos = IndexOligos.bin
+        .flatMap {
+            meta, bin -> // Groovy list comprehesion to get one channel emission per requested side of oligo:
+            meta.sides.collect{ it -> meta.side=it; [meta, bin] }
+        }
+        .combine(IndexFastqs.bin) \
+        | OLIGOS_ALIGN
     MappedOligos.aligned.view()
+
+    /* Check presence of GA dunucleotide in the bridge: */
+    // OLIGOS_CHECK_GA(TableChunks, MappedOligos)
+
+    /* Check complementary RNA ends: */
+    // OLIGOS_CHECK_COMPLEMENTARY(TableChunks, IndexFastqs, MappedOligos) // should be a subworkflow
+
 
     //OLIGOS_CHECK (
     //    ch_fastq_chunks

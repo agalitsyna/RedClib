@@ -28,13 +28,13 @@ process BIN_ENCODE {
         def software = "fasta2bin"
         if (meta.single_end) {
             """
-            fasta2bin ${reads[0]} ${prefix}.bin
+            fasta2hash ${reads[0]} ${prefix}.bin
             echo $VERSION > ${software}.version.txt
             """
         } else {
             """
-            fasta2bin ${reads[0]} ${prefix}.R1.bin
-            fasta2bin ${reads[1]} ${prefix}.R2.bin
+            fasta2hash ${reads[0]} ${prefix}.R1.bin
+            fasta2hash ${reads[1]} ${prefix}.R2.bin
             echo $VERSION > ${software}.version.txt
             """
         }
@@ -42,13 +42,13 @@ process BIN_ENCODE {
         def software = "fastq2bin"
         if (meta.single_end) {
             """
-            fastq2bin ${reads[0]} ${prefix}.bin
+            fastq2hash ${reads[0]} ${prefix}.bin
             echo $VERSION > ${software}.version.txt
             """
         } else {
             """
-            fastq2bin ${reads[0]} ${prefix}.R1.bin
-            fastq2bin ${reads[1]} ${prefix}.R2.bin
+            fastq2hash ${reads[0]} ${prefix}.R1.bin
+            fastq2hash ${reads[1]} ${prefix}.R2.bin
             echo $VERSION > ${software}.version.txt
             """
         }

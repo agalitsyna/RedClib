@@ -1,38 +1,41 @@
-name: module_name
-description: Purpose of the module
+name: align_encoded
+description: Align bin-encoded files with custom script based on Rabin-Carp impementation of string search with mismatches
 keywords:
-    - draft
+    - alignment
 
 tools:
-  - tool1:
-      description: Purpose of the tool
-      homepage: http://...
-      documentation: http://...
-      doi: "..."
+  - align_universal:
+      description: Align bin-encoded files with Rabin-Carp impementation of string search with mismatches
       licence: ['MIT']
 
 input:
-  - meta:
+  - meta_oligos:
       type: map
       description: |
-          Groovy Map containing sample information
-          e.g. [ id:'test', single_end:false ]
-  - reads:
+          Groovy Map containing oligos information
+  - bin_oligos:
       type: file
       description: |
-          List of input FastQ files of size 1 and 2 for single-end and paired-end data,
-          respectively.
+          List of input oligo bin files of size 1
+  - meta_reads:
+      type: map
+      description: |
+          Groovy Map containing reads information
+  - bin_reads:
+      type: file
+      description: |
+          List of input reads bin files of size 1 (single-end) or 2 (paired-end)
 
 output:
   - meta:
       type: map
       description: |
           Groovy Map containing sample information
-          e.g. [ id:'test', single_end:false ]
-  - fastq:
+          e.g. [ id:'test', single_end:false, oligo:'ggg' ]
+  - txt:
       type: file
       descrption: |
-          output file
+          output txt file with mapped oligos positions
   - version:
       type: file
       description: File containing software version

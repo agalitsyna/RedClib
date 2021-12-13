@@ -1,3 +1,4 @@
+// Library for Rabin-Karp C implementation of string search, optimized for nucleotide sequences
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
