@@ -32,7 +32,10 @@ if (params.genome.genes_gtf) { GenesGtf = params.genome.genes_gtf } else { exit 
 def chunksize = params.get('chunksize', 0)
 def dedup_crop = params.get('dedup_crop', 50)
 def trimmomatic_params = params.get('trimmomatic_params', '')
+def check_restriction = params.get('check_restriction', false)
+def RenzymesPreloaded = Genome.get('restricted', {})
 
+// Include modules and subworkflows
 include { INPUT_CHECK_DOWNLOAD } from './subworkflows/local/input_check' addParams( options: [:] )
 include { INPUT_SPLIT          } from './subworkflows/local/input_split' addParams( options: [chunksize: chunksize] )
 
@@ -60,6 +63,9 @@ include { HISAT2_ALIGN as HISAT2_ALIGN_RNA } from './modules/local/hisat2/main' 
 include { BIN_ENCODE as BIN_OLIGOS } from './modules/local/bin_encode/main' addParams( options: [args: [mode: 'fasta']] ) // Bin input oligos from fasta file
 include { BIN_ENCODE as BIN_FASTQ }  from './modules/local/bin_encode/main' addParams( options: [args: [mode: 'fastq']] ) // Bin input fastq
 
+include { OLIGOS_ALIGN } from './modules/local/align_encoded/main' addParams( options: [args: [:]] ) // Align oligos
+
+// Define workflow
 workflow REDC {
 
     /* Prepare input */
@@ -73,8 +79,10 @@ workflow REDC {
     FASTQC(Fastq)
 
     // deduplication of input sequences
-    FastqCropped = Fastq | FASTQ_CROP
-    Nodup = FastqCropped.fastq | TABLE_FASTUNIQ
+    //FastqCropped = Fastq | FASTQ_CROP
+    //Nodup = FastqCropped.fastq | TABLE_FASTUNIQ
+    FASTQ_CROP(Fastq)
+    Nodup = FASTQ_CROP.out.fastq | TABLE_FASTUNIQ
 
     // split input into chunks if chunksize was passed
     FastqChunks = chunksize ? INPUT_SPLIT(Fastq) : Fastq
@@ -85,26 +93,21 @@ workflow REDC {
     Hisat2Index = GENOME_PREPARE.out.genome_index
     GenomeFasta = GENOME_PREPARE.out.genome_fasta
 
-    // Restrict the genome
-    if (params.get('check_restriction', false)) {
-        def RenzymesPreloaded = Genome.get('restricted', {})
+    // Restrict the genome or load pre-computed restriction sites
+    if (check_restriction) {
         Renzymes = Channel
             .fromList(params.protocol.renzymes)
-            .map { it -> [ renzyme: it, assembly: Assembly] }
-            .branch {
-                it ->
-                    forRestriction : !RenzymesPreloaded.containsKey(it.renzyme) // Restrict only missing renzymes
-                        return it
-                    loaded: RenzymesPreloaded.containsKey(it.renzyme) // Load files if restriction is pre-computed
-                        return [it, file(RenzymesPreloaded[it.renzyme])]
-                      }
+            .branch { it ->
+                    forRestriction : !RenzymesPreloaded.containsKey(it) // Restrict only missing renzymes
+                        return [renzyme: it, assembly: Assembly]
+                    loaded : RenzymesPreloaded.containsKey(it) // Load files if restriction is pre-computed
+                        return [[renzyme: it, assembly: Assembly], file(RenzymesPreloaded[it])]
+                    }
         GENOME_RESTRICT(
             Renzymes.forRestriction,
             GenomeFasta
         )
-        GENOME_RESTRICT.out.genome_restricted
-        .mix( Renzymes.loaded )
-        .set { Restricted }
+        Restricted = GENOME_RESTRICT.out.genome_restricted.mix( Renzymes.loaded ) // Concatenate two outputs
     }
 
     // Get the splice sites by hisat2 script
@@ -120,11 +123,18 @@ workflow REDC {
     /* Check for the presence of oligos with a custom script */
     Oligos = Channel
                .fromList(params.oligos.keySet())
-               . map { it -> [[id: it, single_end: true], file(params.oligos[it])] }
-    IndexOligos = BIN_OLIGOS(Oligos)
-    FastqOligos = BIN_FASTQ(FastqChunks)
-//    MappedOligos = OLIGOS_ALIGN(FastqOligos, IndexOligos)
+               .map { it -> [it, params.oligos[it]] }
+               .map { oligo_name, meta ->
+                       meta.single_end = true
+                       meta.id = oligo_name
+                   [meta, file(meta.file)]
+               }
 
+    IndexOligos = BIN_OLIGOS(Oligos)
+    IndexFastqs = BIN_FASTQ(FastqChunks)
+
+    MappedOligos = OLIGOS_ALIGN(IndexOligos.bin, IndexFastqs.bin)
+    MappedOligos.aligned.view()
 
     //OLIGOS_CHECK (
     //    ch_fastq_chunks
