@@ -6,10 +6,10 @@
 // Defining binary constants for shifting and mismatch counting
 #define B1 0x11111111
 #define U  0xffffffff
-#define M1 0x55555555
-#define M2 0x33333333
-#define M4 0x0f0f0f0f
-#define H01 0x01010101
+#define M1 0x55555555 // binary: 0101 0101 0101 ... (unity each second bit)
+#define M2 0x33333333 // binary: 0011 0011 0011 ... (two zeros, two ones)
+#define M4 0x0f0f0f0f // binary: 0000 1111 0000 ... (4 zeros, 4 ones)
+#define H01 0x01010101 // binary: 0000 0001 0000 0001 ... 
 
 unsigned int find_mismatches( unsigned int * seq1, unsigned int * seq2, unsigned int n , unsigned int * mismatches)
 {
@@ -29,8 +29,6 @@ unsigned int find_mismatches( unsigned int * seq1, unsigned int * seq2, unsigned
   return 1;
 }
 
-
-
 unsigned int find_substitutions_in_region( unsigned int * seq1, unsigned int * seq2, unsigned int n, unsigned int * v, unsigned int seq1_from, unsigned int seq2_from)
 {
   unsigned int c,i,j;
@@ -47,6 +45,7 @@ unsigned int find_substitutions_in_region( unsigned int * seq1, unsigned int * s
   }
   return 1;
 }
+
 unsigned int find_substitutions_in_region_inversed( unsigned int * seq1, unsigned int * seq2, unsigned int n, unsigned int * v, unsigned int seq1_to, unsigned int seq2_to)
 {
   unsigned int c,i,j;
@@ -64,9 +63,6 @@ unsigned int find_substitutions_in_region_inversed( unsigned int * seq1, unsigne
   }
   return 1;
 }
-
-
-
 
 unsigned int find_mask( unsigned int * seq1, unsigned int * seq2, unsigned int n, unsigned int * v, unsigned int seq1_to, unsigned int seq2_to, unsigned int mode, unsigned int max_subst,unsigned int mask_start, unsigned int mask_end)
 {

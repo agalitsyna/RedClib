@@ -7,23 +7,28 @@
 unsigned int main (int argc, char **argv)
 {
   // Arguments parser
-  if (argc!=3) {printf("Convert FASTA to binary hash (A/T/G/C/N are encoded as 4 bytes).\nUsage:\n\n%s filename.fasta filename.bin\n",argv[0]);return 0;}
+  if (argc!=3) {
+    fprintf(stderr, "Convert FASTA to binary hash (each character A/T/G/C/N is encoded as 4 bits). Note that each entry sequence shouldn't have new lines. Case insensitive. \nUsage:\n\n%s filename.fasta filename.bin\n",argv[0]);
+    return 0;
+    }
 
-  FILE * fastq;
-  fastq = fopen(argv[1],"r");
+  FILE * fasta;
+  fasta = fopen(argv[1],"r");
 
   FILE * bin;
   bin = fopen(argv[2],"wb");
 
-  char s[161];
-  int i,c, buf=0x00000000,n, u1;
+  int chunk_size=5000; // Buffer size
+  int name_length=5000; // Maximal length of read name
+  char s[chunk_size+1];  // Buffer string for the current fastq line
+  int i, c, buf=0x00000000,n, u1;
   int l[8] = {0x00000007,0x00000070,0x00000700,0x00007000,0x00070000,0x00700000,0x07000000,0x70000000};
 
   while(1)
   {
-    fgets(s,100,fastq);         // Getting line with name
-    fgets(s,160,fastq);         // Getting line with sequence
-    if (feof(fastq)){break;}    // Break out if reach the end
+    fgets(s,name_length,fasta);         // Getting line with name
+    fgets(s,chunk_size,fasta);         // Getting line with sequence
+    if (feof(fasta)){break;}    // Break out if reach the end
 
     n=0;                        // Iterating over the characters in line
     for (i=0; (s[i]!='\n')&&(s[i]!='\0'); i++)
@@ -48,7 +53,7 @@ unsigned int main (int argc, char **argv)
     {
       fwrite(&buf,4,1,bin); 
       n++; 
-    } // Wringing the last fogotten characters
+    } // Wringing the last remaining characters
 
     buf=0x20000000;
     fwrite(&buf,4,1,bin);

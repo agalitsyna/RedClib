@@ -29,22 +29,18 @@ process OLIGOS_ALIGN {
     meta_reads.oligo = meta_oligos.id
     meta_reads.side = meta_oligos.side
 
-    // Encoding the length of the reads for C program:
-    def lengths = [ 80:12, 101:15, 125:18, 133:19, 151:21, 251:34]
-
     if (!lengths.containsKey(meta_reads.rlen.toInteger())) {
         throw new Exception("Read length is not supported for this type of script")
     }
-    
-    def rlen_encoded = lengths[ meta_reads.rlen.toInteger() ]
+
     def left_allowed_shift = meta_oligos.left_allowed_shift
     def right_allowed_shift = (meta_oligos.right_allowed_shift.toInteger() > 0) ? meta_oligos.right_allowed_shift : meta_reads.rlen.toInteger()+meta_oligos.right_allowed_shift.toInteger()
 
     if (meta_reads.single_end) {
         """
-        rk_querysearch ${bin_oligos} ${bin_reads[0]} ${meta_reads.rlen} ${rlen_encoded} \\
+        rk_querysearch ${bin_oligos} ${bin_reads[0]} ${meta_reads.rlen} ${meta_oligos.expected_length} \\
             ${meta_oligos.n_oligos} ${left_allowed_shift} ${right_allowed_shift} \\
-            ${meta_oligos.mismatches_allowed} ${meta_oligos.expected_length} \\
+            ${meta_oligos.mismatches_allowed} \\
             > ${prefix}.tsv
 
         echo $VERSION > ${software}.version.txt
@@ -52,32 +48,32 @@ process OLIGOS_ALIGN {
     } else {
         if (meta_oligos.side==1) {
             """
-            rk_querysearch ${bin_oligos} ${bin_reads[0]} ${meta_reads.rlen} ${rlen_encoded} \\
+            rk_querysearch ${bin_oligos} ${bin_reads[0]} ${meta_reads.rlen} ${meta_oligos.expected_length} \\
                 ${meta_oligos.n_oligos} ${left_allowed_shift} ${right_allowed_shift} \\
-                ${meta_oligos.mismatches_allowed} ${meta_oligos.expected_length} \\
+                ${meta_oligos.mismatches_allowed} \\
                 > ${prefix}.R1.tsv
 
             echo $VERSION > ${software}.version.txt
             """
         } else if (meta_oligos.side==2) {
             """
-            rk_querysearch ${bin_oligos} ${bin_reads[1]} ${meta_reads.rlen} ${rlen_encoded} \\
+            rk_querysearch ${bin_oligos} ${bin_reads[1]} ${meta_reads.rlen} ${meta_oligos.expected_length} \\
                 ${meta_oligos.n_oligos} ${left_allowed_shift} ${right_allowed_shift} \\
-                ${meta_oligos.mismatches_allowed} ${meta_oligos.expected_length} \\
+                ${meta_oligos.mismatches_allowed} \\
                 > ${prefix}.R2.tsv
 
             echo $VERSION > ${software}.version.txt
             """
         } else { // Apply to both sides
             """
-            rk_querysearch ${bin_oligos} ${bin_reads[0]} ${meta_reads.rlen} ${rlen_encoded} \\
+            rk_querysearch ${bin_oligos} ${bin_reads[0]} ${meta_reads.rlen} ${meta_oligos.expected_length} \\
                 ${meta_oligos.n_oligos} ${left_allowed_shift} ${right_allowed_shift} \\
-                ${meta_oligos.mismatches_allowed} ${meta_oligos.expected_length} \\
+                ${meta_oligos.mismatches_allowed} \\
                 > ${prefix}.R1.tsv
 
-            rk_querysearch ${bin_oligos} ${bin_reads[1]} ${meta_reads.rlen} ${rlen_encoded} \\
+            rk_querysearch ${bin_oligos} ${bin_reads[1]} ${meta_reads.rlen} ${meta_oligos.expected_length} \\
                 ${meta_oligos.n_oligos} ${left_allowed_shift} ${right_allowed_shift} \\
-                ${meta_oligos.mismatches_allowed} ${meta_oligos.expected_length} \\
+                ${meta_oligos.mismatches_allowed} \\
                 > ${prefix}.R1.tsv
 
             echo $VERSION > ${software}.version.txt
