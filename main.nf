@@ -60,10 +60,7 @@ include { FASTUNIQ as TABLE_FASTUNIQ} from './modules/local/fastuniq/main' addPa
 include { TRIMMOMATIC as FASTQ_TRIM } from './modules/local/trimmomatic/main' addParams( options: [args: trimmomatic_params, suffix:'.trim', args2: [gzip: false]])
 include { HISAT2_ALIGN as HISAT2_ALIGN_RNA } from './modules/local/hisat2/main' addParams( options: [args:'--known-splicesite-infile', suffix:'.rna'] )
 
-include { BIN_ENCODE as BIN_OLIGOS } from './modules/local/bin_encode/main' addParams( options: [args: [mode: 'fasta']] ) // Bin input oligos from fasta file
-include { BIN_ENCODE as BIN_FASTQ }  from './modules/local/bin_encode/main' addParams( options: [args: [mode: 'fastq']] ) // Bin input fastq
-
-include { OLIGOS_ALIGN } from './modules/local/align_encoded/main' addParams( options: [args: [:]] ) // Align oligos
+include { OLIGOS_MAP } from './subworkflows/local/oligos_map' addParams( options: [:] )
 
 // Define workflow
 workflow REDC {
@@ -114,48 +111,15 @@ workflow REDC {
     GENOME_PREPARE_RNA_ANNOTATIONS(Assembly)
     SpliceSites = GENOME_PREPARE_RNA_ANNOTATIONS.out.genome_splicesites
 
-
     /* Start of the reads processing */
     TableChunks = TABLE_CONVERT(FastqChunks)
     TrimmedChunks = FASTQ_TRIM(FastqChunks)
 
-
-    /* Check for the presence of oligos with a custom Rabin-Karp-based algorithm */
-    Oligos = Channel
-               .fromList(params.oligos.keySet())
-               .map { it -> [it, params.oligos[it]] } // construct meta for each oligo
-               .map { oligo_name, meta ->
-                       meta.single_end = true
-                       meta.id = oligo_name
-                   [meta, file(meta.file)]
-               }
-
-    IndexOligos = BIN_OLIGOS(Oligos)
-    IndexFastqs = BIN_FASTQ(FastqChunks)
-
-    MappedOligos = IndexOligos.bin
-        .flatMap {
-            meta, bin -> // Groovy list comprehesion to get one channel emission per requested side of oligo:
-            meta.sides.collect{ it -> meta.side=it; [meta, bin] }
-        }
-        .combine(IndexFastqs.bin) \
-        | OLIGOS_ALIGN
-    MappedOligos.aligned.view()
-
-    /* Check presence of GA dunucleotide in the bridge: */
-    // OLIGOS_CHECK_GA(TableChunks, MappedOligos)
+    /* Map and check oligos */
+    Oligos = OLIGOS_MAP(FastqChunks.output, TableChunks.table)
 
     /* Check complementary RNA ends: */
     // OLIGOS_CHECK_COMPLEMENTARY(TableChunks, IndexFastqs, MappedOligos) // should be a subworkflow
-
-
-    //OLIGOS_CHECK (
-    //    ch_fastq_chunks
-    //)
-
-    //COMPLEMENTARY_CHECK (
-    //    ch_fastq_chunks
-    //)
 
     //SUBSTRINGS_GET (
     //    ch_fastq_chunks

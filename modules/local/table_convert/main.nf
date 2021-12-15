@@ -18,10 +18,8 @@ process TABLE_CONVERT {
     tuple val(meta), path(reads)
 
     output:
-    tuple val(meta), path("*.fastq.txt"), emit: table
+    tuple val(meta), path("*.fastq.tsv"), emit: table
     path  "*.version.txt"               , emit: version
-
-    tuple val(meta), path("*fastq.gz"), optional:true, emit: fastq
 
     script:
     def software = getSoftwareName(task.process)
@@ -30,8 +28,9 @@ process TABLE_CONVERT {
     if (meta.single_end) {
          def input_fq1 = reads[0]
         """
+        echo "#readID\tsample\tR\tQ"  > ${prefix}.fastq.tsv
         paste <(awk '{print \$1}' ${input_fq1} | sed 'N;N;N;s/\\n/ /g' | \
-                awk 'BEGIN{OFS="\\t"}{print \$1, "${prefix}", \$2, \$4}' ) > ${prefix}.fastq.txt
+                awk 'BEGIN{OFS="\\t"}{print \$1, "${prefix}", \$2, \$4}' ) >> ${prefix}.fastq.txt
 
         echo $VERSION > ${software}.version.txt
         """
@@ -39,10 +38,11 @@ process TABLE_CONVERT {
         def input_fq1 = reads[0]
         def input_fq2 = reads[1]
         """
+        echo "#readID\tsample\tR1\tQ1\tR2\tQ2"  > ${prefix}.fastq.tsv
         paste <(awk '{print \$1}' ${input_fq1} | sed 'N;N;N;s/\\n/ /g' | \
                 awk 'BEGIN{OFS="\\t"}{print \$1, "${prefix}", \$2, \$4}' ) \
               <(awk '{print \$1}' ${input_fq2} | sed 'N;N;N;s/\\n/ /g' | \
-                awk 'BEGIN{OFS="\\t"}{print \$2, \$4}' ) > ${prefix}.fastq.txt
+                awk 'BEGIN{OFS="\\t"}{print \$2, \$4}' ) >> ${prefix}.fastq.tsv
 
         echo $VERSION > ${software}.version.txt
         """

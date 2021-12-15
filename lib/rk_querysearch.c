@@ -59,7 +59,7 @@ int main (int argc, char *argv[])
 {
     if ((argc!=9)&(argc!=10)&(argc!=11)) {
         fprintf(stderr, "\nRabin-Karp implementation for nucleotides query search with substitutions (one/several queries in each read from library. Requires pre-computed hashes as input. Outputs a tsv file with hits of query in the library of entries.\n\n");
-        fprintf(stderr, "Usage:\t%s query.bin library.bin query_seq_len entry_seq_len n_queries min_shift_left min_shift_right allowed_mismatches (right_to_left=0) (report_single_hit=1) > output.tsv\n\n", argv[0]);
+        fprintf(stderr, "Usage:\t%s [query.bin] [library.bin] [query_seq_len] [entry_seq_len] [n_queries] [min_shift_left] [min_shift_right] [allowed_mismatches] (right_to_left=0) (report_single_hit=1) > output.tsv\n\n", argv[0]);
         fprintf(stderr, "\t query.bin : string filename \n\t\t input binary hash for query/queries, compiled by fasta2hash/fastq2hash from librk. All queries should be the same length!\n");
         fprintf(stderr, "\t library.bin : string filename \n\t\t input binary hash for library of sequence entries, compiled by fasta2hash/fastq2hash from librk. All entries should be the same length, same as entry_seq_len!\n");
         fprintf(stderr, "\t query_seq_len : int \n\t\t the length of the hit for reporting (might be larger).\n");
