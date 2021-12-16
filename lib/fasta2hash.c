@@ -61,7 +61,7 @@ unsigned int main (int argc, char **argv)
     n++;
   }
   buf=0x50000000;
-  fwrite(&buf,4,1,bin);         // Intentional empty sequence
+  //fwrite(&buf,4,1,bin);         // Intentional empty sequence
 
   return 0;
 }

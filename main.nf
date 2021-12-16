@@ -116,10 +116,7 @@ workflow REDC {
     TrimmedChunks = FASTQ_TRIM(FastqChunks)
 
     /* Map and check oligos */
-    Oligos = OLIGOS_MAP(FastqChunks.output, TableChunks.table)
-
-    /* Check complementary RNA ends: */
-    // OLIGOS_CHECK_COMPLEMENTARY(TableChunks, IndexFastqs, MappedOligos) // should be a subworkflow
+    Oligos = OLIGOS_MAP(FastqChunks, TableChunks.table)
 
     //SUBSTRINGS_GET (
     //    ch_fastq_chunks

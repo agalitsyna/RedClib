@@ -30,9 +30,12 @@ process OLIGOS_ALIGN {
     def left_allowed_shift = meta_oligos.left_allowed_shift
     def right_allowed_shift = (meta_oligos.right_allowed_shift.toInteger() > 0) ? meta_oligos.right_allowed_shift : meta.rlen.toInteger()+meta_oligos.right_allowed_shift.toInteger()
 
+    def read_length = meta.rlen
+    def oligo_length = meta_oligos.expected_length
+
     if (meta.single_end) {
         """
-        rk_querysearch ${bin_oligos} ${bin_reads[0]} ${meta_oligos.expected_length} ${meta.rlen} \
+        rk_querysearch ${bin_oligos} ${bin_reads[0]} ${oligo_length} ${read_length} \
             ${meta_oligos.n_oligos} ${left_allowed_shift} ${right_allowed_shift} \\
             ${meta_oligos.mismatches_allowed} \\
             > ${prefix}.tsv
@@ -42,7 +45,7 @@ process OLIGOS_ALIGN {
     } else {
         if (meta_oligos.side==1) {
             """
-            rk_querysearch ${bin_oligos} ${bin_reads[0]} ${meta_oligos.expected_length} ${meta.rlen} \\
+            rk_querysearch ${bin_oligos} ${bin_reads[0]} ${oligo_length} ${read_length} \\
                 ${meta_oligos.n_oligos} ${left_allowed_shift} ${right_allowed_shift} \\
                 ${meta_oligos.mismatches_allowed} \\
                 > ${prefix}.R1.tsv
@@ -51,7 +54,7 @@ process OLIGOS_ALIGN {
             """
         } else if (meta_oligos.side==2) {
             """
-            rk_querysearch ${bin_oligos} ${bin_reads[1]} ${meta_oligos.expected_length} ${meta.rlen} \\
+            rk_querysearch ${bin_oligos} ${bin_reads[1]} ${oligo_length} ${read_length} \\
                 ${meta_oligos.n_oligos} ${left_allowed_shift} ${right_allowed_shift} \\
                 ${meta_oligos.mismatches_allowed} \\
                 > ${prefix}.R2.tsv
@@ -60,12 +63,12 @@ process OLIGOS_ALIGN {
             """
         } else { // Apply to both sides
             """
-            rk_querysearch ${bin_oligos} ${bin_reads[0]} ${meta_oligos.expected_length} ${meta.rlen} \\
+            rk_querysearch ${bin_oligos} ${bin_reads[0]} ${oligo_length} ${read_length} \\
                 ${meta_oligos.n_oligos} ${left_allowed_shift} ${right_allowed_shift} \\
                 ${meta_oligos.mismatches_allowed} \\
                 > ${prefix}.R1.tsv
 
-            rk_querysearch ${bin_oligos} ${bin_reads[1]} ${meta_oligos.expected_length} ${meta.rlen} \\
+            rk_querysearch ${bin_oligos} ${bin_reads[1]} ${oligo_length} ${read_length} \\
                 ${meta_oligos.n_oligos} ${left_allowed_shift} ${right_allowed_shift} \\
                 ${meta_oligos.mismatches_allowed} \\
                 > ${prefix}.R1.tsv

@@ -110,7 +110,7 @@ int main (int argc, char *argv[])
 
     unsigned int buf[entry_length+1], * array_shift_l[10], * array_shift_r[10];
     unsigned int c, i, j, oligo_len;
-    int is_hit=0, is_found=0, shift;
+    int is_hit=0, shift, is_found=0;
     unsigned int shift_l, shift_s, target_region_len;
 
     for (i=0; fread(buf, 4, entry_length-1, library_bin)>0; i++)
@@ -236,7 +236,7 @@ int main (int argc, char *argv[])
                     if (is_found&report_single_hit) break;
                 }
             }
-            // Free the pointer of array buffer
+            // Free the pointer of array buffer:
             for (shift_l=1; shift_l<=4; shift_l++)
             {
                 free(array_shift_r[shift_l]);
@@ -246,5 +246,6 @@ int main (int argc, char *argv[])
         }
         if ((!is_found)&report_single_hit) printf("%u\t%u\t%u\t%i\t%i\n", i, j, 99999, 99999, 99999);
     }
+    fclose( library_bin );
     return 0;
 }
