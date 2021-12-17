@@ -11,6 +11,10 @@ include { OLIGOS_ALIGN } from '../../modules/local/align_encoded/main' addParams
 include { OLIGOS_CHECK as OLIGOS_CHECK_GA } from '../../modules/local/oligos_check/main' addParams( options: [args: [oligo: 'GA', position: 35, orientation: 'F']] ) // Check oligos presence
 include { OLIGOS_CHECK_COMPLEMENTARY } from '../../modules/local/oligos_complementary/main' addParams( options: [args: [rna_complementary_length: 14]] ) // Align comnplementary fragments of RNA
 
+include { PARQUET_CONVERT as TABLE_CONVERT } from '../../modules/local/parquet_convert/main' addParams( options: [args: [:]] )
+//include { PARQUET_MERGE as TABLE_MERGE } from '../../modules/local/parquet_merge/main' addParams( options: [args: [suffixes:['']]] )
+include { TSV_MERGE as TABLE_MERGE } from '../../modules/local/tsv_merge/main' addParams( options: [args: [suffixes:['']]] )
+
 workflow OLIGOS_MAP {
     take:
         FastqChunks // Channel with loaded FastqChunks
@@ -21,11 +25,12 @@ workflow OLIGOS_MAP {
         /* Check for the presence of oligos with a custom Rabin-Karp-based algorithm */
         // Load oligos:
         Oligos = Channel
-                   .fromList(params.oligos.keySet())
-                   .map { it -> [it, params.oligos[it]] } // construct meta for each oligo
-                   .map { oligo_name, meta ->
+                   .from(params.oligos.keySet().withIndex())
+                   .map { it, idx -> [it, idx, params.oligos[it]] } // construct meta for each oligo
+                   .map { oligo_name, idx, meta ->
                            meta.single_end = true
                            meta.id = oligo_name
+                           meta.idx = idx
                        [meta, file(meta.file)]
                    }
 
@@ -34,32 +39,40 @@ workflow OLIGOS_MAP {
         IndexedFastqs = BIN_FASTQ(FastqChunks)
 
         IndexedLibrary = IndexedFastqs.bin.combine(IndexedOligos.bin).multiMap { it ->
-                                                                bin_reads: update_meta( [it[0], it[1]], [oligo: it[2].id, side: it[2].side] )
+                                                                bin_reads: update_meta( [it[0], it[1]], [oligo: it[2].id, side: it[2].side, idx: it[2].idx] )
                                                                 bin_oligos: [it[2], it[3]]
                                                            } // Two branches: bin_reads and bin_oligos
         /* Check oligos presence */
-        aligned_oligos = OLIGOS_ALIGN(IndexedLibrary).aligned
+        HitsOligosStream = OLIGOS_ALIGN(IndexedLibrary).aligned //| TABLE_CONVERT
 
         /* Check presence of GA dinucleotide in the bridge: */
-        hits_small_oligos = OLIGOS_CHECK_GA(
-                            join_2_channels(TableChunks, aligned_oligos.filter { it[0].oligo=='bridge_forward' && it[0].side==1 }, 'id')
+        HitsSmallOligos = OLIGOS_CHECK_GA(
+                            join_2_channels(TableChunks, HitsOligosStream.filter { it[0].oligo=='bridge_forward' && it[0].side==1 }, 'id')
                             ).hits
-        hits_small_oligos
 
         /* Check complementary RNA ends: */
-        hits_complementary = OLIGOS_CHECK_COMPLEMENTARY( join_4_channels(
+        HitsComplementary = OLIGOS_CHECK_COMPLEMENTARY( join_4_channels(
                                 TableChunks,
                                 IndexedLibrary.bin_reads,
-                                aligned_oligos.filter { it[0].oligo=='bridge_forward' && it[0].side==1 },
-                                aligned_oligos.filter { it[0].oligo=='ggg' && it[0].side==2 },
+                                HitsOligosStream.filter { it[0].oligo=='bridge_forward' && it[0].side==1 },
+                                HitsOligosStream.filter { it[0].oligo=='ggg' && it[0].side==2 },
                                 'id')
                             ).hits
 
-    emit:
-    aligned_oligos // channel: [ val(meta), [ aligned ] ]
-    hits_small_oligos // channel: [ val(meta), [ hits ] ]
-    hits_complementary // channel: [ val(meta), [ hits ] ]
+        HitsOligosGrouped = HitsOligosStream
+                            .map{ it -> [ [it[0]['id']], it ] }.groupTuple(by: 0, sort: { a, b -> a[0].idx <=> b[0].idx })
+                            .map{ it -> it.collect()[1].collect{ item -> [item[0], file(item[1]), item[0].oligo+'_R'+item[0].side] }.transpose() } //.transpose().collect()
+                            .multiMap{meta, files, suffixes ->
+                                dataset: [meta[0],  files]
+                                suffixes: suffixes
+                           }
 
+        HitsOligos = TABLE_MERGE( HitsOligosGrouped ).output
+
+    emit:
+    HitsOligos // channel: [ val(meta), [ output_table ] ]
+    HitsSmallOligos // channel: [ val(meta), [ output_table ] ]
+    HitsComplementary // channel: [ val(meta), [ output_table ] ]
 }
 
 def join_2_channels(channel_l, channel_r, k){

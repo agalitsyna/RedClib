@@ -22,7 +22,7 @@ process TRIMMOMATIC {
     tuple val(meta), path(fastq)
 
     output:
-    tuple val(meta), path("*fastq*"), emit: fastq
+    tuple val(meta), path("*.fastq*"), emit: fastq
     path "*.version.txt"          , emit: version
 
     script:
@@ -50,9 +50,9 @@ process TRIMMOMATIC {
             ${fastq_r1} \\
             ${fastq_r2} \\
             ${prefix}_R1.fastq${format} \\
-            ${prefix}_R1.unpaired.fastq${format} \\
+            R1.unpaired.fq${format} \\
             ${prefix}_R2.fastq${format} \\
-            ${prefix}_R2.unpaired.fastq${format} \\
+            R2.unpaired.fq${format} \\
             $options.args
 
         trimmomatic -version > ${software}.version.txt

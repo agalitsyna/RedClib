@@ -58,6 +58,7 @@ include { TRIMMOMATIC as FASTQ_CROP } from './modules/local/trimmomatic/main' ad
 include { FASTUNIQ as TABLE_FASTUNIQ} from './modules/local/fastuniq/main' addParams( options: [:] )
 
 include { TRIMMOMATIC as FASTQ_TRIM } from './modules/local/trimmomatic/main' addParams( options: [args: trimmomatic_params, suffix:'.trim', args2: [gzip: false]])
+include { TABLE_TRIM } from './modules/local/table_trimmomatic' addParams( options: [:] )
 include { HISAT2_ALIGN as HISAT2_ALIGN_RNA } from './modules/local/hisat2/main' addParams( options: [args:'--known-splicesite-infile', suffix:'.rna'] )
 
 include { OLIGOS_MAP } from './subworkflows/local/oligos_map' addParams( options: [:] )
@@ -76,8 +77,6 @@ workflow REDC {
     FASTQC(Fastq)
 
     // deduplication of input sequences
-    //FastqCropped = Fastq | FASTQ_CROP
-    //Nodup = FastqCropped.fastq | TABLE_FASTUNIQ
     FASTQ_CROP(Fastq)
     Nodup = FASTQ_CROP.out.fastq | TABLE_FASTUNIQ
 
@@ -112,11 +111,15 @@ workflow REDC {
     SpliceSites = GENOME_PREPARE_RNA_ANNOTATIONS.out.genome_splicesites
 
     /* Start of the reads processing */
-    TableChunks = TABLE_CONVERT(FastqChunks)
-    TrimmedChunks = FASTQ_TRIM(FastqChunks)
+    TableChunks = TABLE_CONVERT(FastqChunks).table
+    TrimmedChunks = FASTQ_TRIM(FastqChunks).fastq
+
+    TABLE_TRIM( join_2_channels(TableChunks, TrimmedChunks, 'id') ).table.view()
 
     /* Map and check oligos */
-    Oligos = OLIGOS_MAP(FastqChunks, TableChunks.table)
+    Hits = OLIGOS_MAP(FastqChunks, TableChunks)
+
+    Hits.HitsOligos.view()
 
     //SUBSTRINGS_GET (
     //    ch_fastq_chunks
@@ -143,4 +146,15 @@ workflow {
 }
 workflow.onComplete {
     log.info "Done!"
+}
+
+def join_2_channels(channel_l, channel_r, k){
+    // Take two channels and a meta key and return two channels combined by that key:
+    channel_l
+        .map{ it -> [it[0][k], it] }
+        .combine(channel_r.map{ it -> [it[0][k], it] }, by: 0)
+        .multiMap { key, left, right ->
+                    left: left
+                    right: right
+         }
 }
