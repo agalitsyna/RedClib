@@ -20,7 +20,7 @@ process OLIGOS_CHECK_COMPLEMENTARY {
     tuple val(meta_oligos_ggg), path(aligned_ggg)
 
     output:
-    tuple val(meta), path("*.tsv"), emit: hits
+    tuple val(meta), path("*.complementaryHits.tsv"), emit: hits
     path  "*.version.txt"         , emit: version
 
 
@@ -74,6 +74,17 @@ process OLIGOS_CHECK_COMPLEMENTARY {
 
     rk_pairwise ${prefix}.rna-end.1.revcomp.bin ${bin_reads[0]} ${rna_complementary_length} ${read_length} \\
                0 ${read_length-rna_complementary_length} 0 > ${prefix}.${meta_reads.id}.${meta_oligos_bridge_forward.id}.${meta_oligos_ggg.id}.hits_complementary.R2.tsv
+
+    # Merge two tabular outputs:
+    # design header
+    head -n 1 ${prefix}.${meta_reads.id}.${meta_oligos_bridge_forward.id}.${meta_oligos_ggg.id}.hits_complementary.R1.tsv \\
+     | sed 's/\\t/__complementaryHits_R1\\t/g' | sed 's/\$/__complementaryHits_R1/' | sed 's/#//g' | tr '\\n' '\\t' > ${prefix}.complementaryHits.tsv
+    head -n 1 ${prefix}.${meta_reads.id}.${meta_oligos_bridge_forward.id}.${meta_oligos_ggg.id}.hits_complementary.R2.tsv \\
+     | sed 's/\\t/__complementaryHits_R2\\t/g' | sed 's/\$/__complementaryHits_R2/' | sed 's/#//g' | tr '\\n' '\\t' >> ${prefix}.complementaryHits.tsv
+    sed -i "s/\\t\$/\\n/" ${prefix}.complementaryHits.tsv
+    # write to the body
+    paste <(tail -n +2 ${prefix}.${meta_reads.id}.${meta_oligos_bridge_forward.id}.${meta_oligos_ggg.id}.hits_complementary.R1.tsv) \\
+        <(tail -n +2 ${prefix}.${meta_reads.id}.${meta_oligos_bridge_forward.id}.${meta_oligos_ggg.id}.hits_complementary.R2.tsv) >> ${prefix}.complementaryHits.tsv
 
     echo $VERSION > ${software}.version.txt
     """

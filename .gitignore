@@ -2,8 +2,11 @@
 pipeline_info/*
 work/*
 results/*
-bin/align_pairwise
-bin/align_universal
-bin/fasta2bin
-bin/fastq2bin
+bin/rk_querysearch
+bin/rk_pairwise
+bin/fasta2hash
+bin/fastq2hash
 bin/hisat2_extract_splice_sites.py
+data/genome/
+test/
+output/

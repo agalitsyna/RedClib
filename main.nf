@@ -1,5 +1,12 @@
 #!/usr/bin/env nextflow
 
+// TODOs:
+// 1. Check the specifications for all the modules. Restructure irrelevant as simple scripts.
+// 2. Process low/high check.
+// 3. Add checks for the read length.
+// 4. verify intermediate file names
+// 5. do not store the intermediary files
+
 nextflow.enable.dsl = 2
 
 // Define help message
@@ -52,7 +59,7 @@ include { GENOME_PREPARE_RNA_ANNOTATIONS } from './modules/local/genome_prepare_
                                                             ]])
 
 include { FASTQC } from './modules/nf-core/software/fastqc/main' addParams( options: [:] )
-include { TABLE_CONVERT } from './modules/local/table_convert/main' addParams( options: [:] )
+include { TABLE_CONVERT as FASTQ_TABLE_CONVERT } from './modules/local/table_convert/main' addParams( options: [:] )
 
 include { TRIMMOMATIC as FASTQ_CROP } from './modules/local/trimmomatic/main' addParams( options: [args: 'CROP:'+dedup_crop, suffix:'.crop', args2: [gzip: false]])
 include { FASTUNIQ as TABLE_FASTUNIQ} from './modules/local/fastuniq/main' addParams( options: [:] )
@@ -62,6 +69,12 @@ include { TABLE_TRIM } from './modules/local/table_trimmomatic' addParams( optio
 include { HISAT2_ALIGN as HISAT2_ALIGN_RNA } from './modules/local/hisat2/main' addParams( options: [args:'--known-splicesite-infile', suffix:'.rna'] )
 
 include { OLIGOS_MAP } from './subworkflows/local/oligos_map' addParams( options: [:] )
+
+include { TSV_MERGE as TABLE_MERGE } from './modules/local/tsv_merge/main' addParams( options: [args: [:], suffix: '.table'] )
+
+include { PARQUET_CONVERT as TABLE_CONVERT } from './modules/local/parquet_convert/main' addParams( options: [args: [:]] )
+//include { PARQUET_MERGE as TABLE_MERGE } from './modules/local/parquet_merge/main' addParams( options: [args: [suffixes:['']]] )
+
 
 // Define workflow
 workflow REDC {
@@ -73,8 +86,8 @@ workflow REDC {
                 meta.id = meta.id.split('_')[0..-2].join('_')
                 [ meta, fastq ] }
 
-    // fastqc quality of the sequencing
-    FASTQC(Fastq)
+//    // fastqc quality of the sequencing
+//    FASTQC(Fastq)
 
     // deduplication of input sequences
     FASTQ_CROP(Fastq)
@@ -83,43 +96,55 @@ workflow REDC {
     // split input into chunks if chunksize was passed
     FastqChunks = chunksize ? INPUT_SPLIT(Fastq) : Fastq
 
-    /* Prepare genome and annotations */
-    // Prepare genome (index, chromosome sizes and fasta)
-    GENOME_PREPARE(Assembly)
-    Hisat2Index = GENOME_PREPARE.out.genome_index
-    GenomeFasta = GENOME_PREPARE.out.genome_fasta
-
-    // Restrict the genome or load pre-computed restriction sites
-    if (check_restriction) {
-        Renzymes = Channel
-            .fromList(params.protocol.renzymes)
-            .branch { it ->
-                    forRestriction : !RenzymesPreloaded.containsKey(it) // Restrict only missing renzymes
-                        return [renzyme: it, assembly: Assembly]
-                    loaded : RenzymesPreloaded.containsKey(it) // Load files if restriction is pre-computed
-                        return [[renzyme: it, assembly: Assembly], file(RenzymesPreloaded[it])]
-                    }
-        GENOME_RESTRICT(
-            Renzymes.forRestriction,
-            GenomeFasta
-        )
-        Restricted = GENOME_RESTRICT.out.genome_restricted.mix( Renzymes.loaded ) // Concatenate two outputs
-    }
-
-    // Get the splice sites by hisat2 script
-    GENOME_PREPARE_RNA_ANNOTATIONS(Assembly)
-    SpliceSites = GENOME_PREPARE_RNA_ANNOTATIONS.out.genome_splicesites
+//    /* Prepare genome and annotations */
+//    // Prepare genome (index, chromosome sizes and fasta)
+//    GENOME_PREPARE(Assembly)
+//    Hisat2Index = GENOME_PREPARE.out.genome_index
+//    GenomeFasta = GENOME_PREPARE.out.genome_fasta
+//
+//    // Restrict the genome or load pre-computed restriction sites
+//    if (check_restriction) {
+//        Renzymes = Channel
+//            .fromList(params.protocol.renzymes)
+//            .branch { it ->
+//                    forRestriction : !RenzymesPreloaded.containsKey(it) // Restrict only missing renzymes
+//                        return [renzyme: it, assembly: Assembly]
+//                    loaded : RenzymesPreloaded.containsKey(it) // Load files if restriction is pre-computed
+//                        return [[renzyme: it, assembly: Assembly], file(RenzymesPreloaded[it])]
+//                    }
+//        GENOME_RESTRICT(
+//            Renzymes.forRestriction,
+//            GenomeFasta
+//        )
+//        Restricted = GENOME_RESTRICT.out.genome_restricted.mix( Renzymes.loaded ) // Concatenate two outputs
+//    }
+//
+//    // Get the splice sites by hisat2 script
+//    GENOME_PREPARE_RNA_ANNOTATIONS(Assembly)
+//    SpliceSites = GENOME_PREPARE_RNA_ANNOTATIONS.out.genome_splicesites
 
     /* Start of the reads processing */
-    TableChunks = TABLE_CONVERT(FastqChunks).table
-    TrimmedChunks = FASTQ_TRIM(FastqChunks).fastq
+    TableChunks = FASTQ_TABLE_CONVERT(FastqChunks).table
 
-    TABLE_TRIM( join_2_channels(TableChunks, TrimmedChunks, 'id') ).table.view()
+    /* Trim reads by quality */
+    TrimmedChunks = FASTQ_TRIM(FastqChunks).fastq
+    TrimTable = TABLE_TRIM( join_2_channels(TableChunks, TrimmedChunks, 'id') ).table
 
     /* Map and check oligos */
     Hits = OLIGOS_MAP(FastqChunks, TableChunks)
 
-    Hits.HitsOligos.view()
+    /* One of the important tables with merged statistics for each read: */
+    TablesGrouped = TableChunks.map{ it -> [ [it[0]['id']], it ] }
+                             .combine( TrimTable.map{ it -> [ [it[0]['id']], it ] }, by: 0 )
+                             .combine( Hits.HitsOligos.map{ it -> [ [it[0]['id']], it ] }, by: 0 )
+                             .combine( Hits.HitsSmallOligos.map{ it -> [ [it[0]['id']], it ] }, by: 0 )
+                             .combine( Hits.HitsComplementary.map{ it -> [ [it[0]['id']], it ] }, by: 0 )
+                             .multiMap{id, ch1, ch2, ch3, ch4, ch5 ->
+                                dataset: [ch1[0], [ch1[1], ch2[1], ch3[1], ch4[1], ch5[1]]]
+                                suffixes: ['', '', '', '', '__complementary']
+                           }
+    ResultingTable = TABLE_CONVERT( TABLE_MERGE( TablesGrouped ).output ).parquet
+
 
     //SUBSTRINGS_GET (
     //    ch_fastq_chunks

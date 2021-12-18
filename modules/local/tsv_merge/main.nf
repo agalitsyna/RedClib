@@ -21,8 +21,8 @@ process TSV_MERGE {
 //    }
 
     input:
-    tuple val(meta), path(files)
-    val(suffixes)
+    tuple val(meta), path(files) // channel: meta, [tsv1, tsv2, tsv3, ...]
+    val(suffixes) // channel: [suffix1, suffix2, suffix3, ...]
 
     output:
     tuple val(meta), path("*.tsv"), emit: output
@@ -46,8 +46,8 @@ process TSV_MERGE {
     ${header_command}
     sed -i "s/\\t\$/\\n/" header.txt
 
-    cat header.txt > ${prefix}.OligosHits.tsv
-    paste ${files} | tail -n +2 >> ${prefix}.OligosHits.tsv
+    cat header.txt > ${prefix}.tsv
+    paste ${files} | tail -n +2 >> ${prefix}.tsv
 
     echo $VERSION > ${software}.version.txt
     """

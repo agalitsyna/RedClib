@@ -11,9 +11,7 @@ include { OLIGOS_ALIGN } from '../../modules/local/align_encoded/main' addParams
 include { OLIGOS_CHECK as OLIGOS_CHECK_GA } from '../../modules/local/oligos_check/main' addParams( options: [args: [oligo: 'GA', position: 35, orientation: 'F']] ) // Check oligos presence
 include { OLIGOS_CHECK_COMPLEMENTARY } from '../../modules/local/oligos_complementary/main' addParams( options: [args: [rna_complementary_length: 14]] ) // Align comnplementary fragments of RNA
 
-include { PARQUET_CONVERT as TABLE_CONVERT } from '../../modules/local/parquet_convert/main' addParams( options: [args: [:]] )
-//include { PARQUET_MERGE as TABLE_MERGE } from '../../modules/local/parquet_merge/main' addParams( options: [args: [suffixes:['']]] )
-include { TSV_MERGE as TABLE_MERGE } from '../../modules/local/tsv_merge/main' addParams( options: [args: [suffixes:['']]] )
+include { TSV_MERGE as TABLE_MERGE_OLIGOS } from '../../modules/local/tsv_merge/main' addParams( options: [args: [:], suffix: '.oligos'] )
 
 workflow OLIGOS_MAP {
     take:
@@ -35,15 +33,15 @@ workflow OLIGOS_MAP {
                    }
 
         // Index oligos:
-        IndexedOligos = BIN_OLIGOS(Oligos)
-        IndexedFastqs = BIN_FASTQ(FastqChunks)
+        IndexedOligos = BIN_OLIGOS(Oligos).bin
+        IndexedFastqs = BIN_FASTQ(FastqChunks).bin
 
-        IndexedLibrary = IndexedFastqs.bin.combine(IndexedOligos.bin).multiMap { it ->
+        IndexedLibrary = IndexedFastqs.combine(IndexedOligos).multiMap { it ->
                                                                 bin_reads: update_meta( [it[0], it[1]], [oligo: it[2].id, side: it[2].side, idx: it[2].idx] )
                                                                 bin_oligos: [it[2], it[3]]
                                                            } // Two branches: bin_reads and bin_oligos
         /* Check oligos presence */
-        HitsOligosStream = OLIGOS_ALIGN(IndexedLibrary).aligned //| TABLE_CONVERT
+        HitsOligosStream = OLIGOS_ALIGN(IndexedLibrary).aligned
 
         /* Check presence of GA dinucleotide in the bridge: */
         HitsSmallOligos = OLIGOS_CHECK_GA(
@@ -53,7 +51,7 @@ workflow OLIGOS_MAP {
         /* Check complementary RNA ends: */
         HitsComplementary = OLIGOS_CHECK_COMPLEMENTARY( join_4_channels(
                                 TableChunks,
-                                IndexedLibrary.bin_reads,
+                                IndexedFastqs,
                                 HitsOligosStream.filter { it[0].oligo=='bridge_forward' && it[0].side==1 },
                                 HitsOligosStream.filter { it[0].oligo=='ggg' && it[0].side==2 },
                                 'id')
@@ -67,7 +65,7 @@ workflow OLIGOS_MAP {
                                 suffixes: suffixes
                            }
 
-        HitsOligos = TABLE_MERGE( HitsOligosGrouped ).output
+        HitsOligos = TABLE_MERGE_OLIGOS( HitsOligosGrouped ).output
 
     emit:
     HitsOligos // channel: [ val(meta), [ output_table ] ]
