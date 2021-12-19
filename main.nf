@@ -6,6 +6,7 @@
 // 3. Add checks for the read length.
 // 4. verify intermediate file names
 // 5. do not store the intermediary files
+// 6. Add hdf5 backend instead of pyarrow/parquet
 
 nextflow.enable.dsl = 2
 
@@ -75,6 +76,8 @@ include { TSV_MERGE as TABLE_MERGE } from './modules/local/tsv_merge/main' addPa
 include { PARQUET_CONVERT as TABLE_CONVERT } from './modules/local/parquet_convert/main' addParams( options: [args: [:]] )
 //include { PARQUET_MERGE as TABLE_MERGE } from './modules/local/parquet_merge/main' addParams( options: [args: [suffixes:['']]] )
 
+include { PARQUET_EVALUATE as TABLE_EVALUATE_FRAGMENTS } from './modules/local/parquet_evaluate'  addParams( options: [args: [format:'int'], suffix:'.fragments'] )
+include { PARQUET2FASTQ as FRAGMENTS_TO_FASTQ } from './modules/local/parquet2fastq'  addParams( options: [args: [:], suffix:'.fragments'] )
 
 // Define workflow
 workflow REDC {
@@ -143,12 +146,38 @@ workflow REDC {
                                 dataset: [ch1[0], [ch1[1], ch2[1], ch3[1], ch4[1], ch5[1]]]
                                 suffixes: ['', '', '', '', '__complementary']
                            }
-    ResultingTable = TABLE_CONVERT( TABLE_MERGE( TablesGrouped ).output ).parquet
+    ResultingTable = TABLE_MERGE( TablesGrouped ).output
 
+    ResultingParquetTable = TABLE_CONVERT( ResultingTable ).parquet
 
-    //SUBSTRINGS_GET (
-    //    ch_fastq_chunks
-    //)
+    /* Read metadata about the fragments */
+    def FragmentsColumns = [:] // todo: add necessary check here
+    for (fragment_name in params.fragments.keySet()){ // select all fragments
+        fragment_params = params.fragments[fragment_name] // take the parameters for each fragment
+        for( col in fragment_params.new_columns.keySet() ) { // add new columns to the list
+            FragmentsColumns[col] = fragment_params.new_columns[col]
+        }
+    }
+    FragmentsFilters = Channel.from(FragmentsColumns)
+
+    ResultingParquetTableWithFragments = TABLE_EVALUATE_FRAGMENTS (ResultingParquetTable
+                                                                    .combine( FragmentsFilters )
+                                                                    .multiMap{meta, id, filt ->
+                                                                              pq: [meta, id]
+                                                                              filters: filt }
+                                                                  ).parquet
+
+    FragmentsSelection = ResultingParquetTableWithFragments
+                        .combine( Channel.fromList(params.fragments.collect { fragment, fragment_params -> [fragment: fragment, params:fragment_params] }) )
+                        .map { meta_pq, pq1, pq2, fragment ->
+                                        bin_reads: update_meta( [meta_pq, [pq1, pq2]],
+                                                                [fragment: fragment.fragment,
+                                                                 side: fragment.params.side,
+                                                                 selection_criteria: fragment.params.selection_criteria] )
+                                   }
+
+    FRAGMENTS_TO_FASTQ( FragmentsSelection )
+
 
     //EXTEND (
     //    ch_parsed.dna
@@ -182,4 +211,24 @@ def join_2_channels(channel_l, channel_r, k){
                     left: left
                     right: right
          }
+}
+
+def update_meta( it, hashMap ) {
+    def meta = [:]
+    keys = it[0].keySet() as String[]
+    for( key in keys ) {
+        meta[key] = it[0][key]
+    }
+
+    if (!meta.single_end) {
+        file2 = it[1][1]
+    }
+
+    keys_new = hashMap.keySet() as String[]
+    for( key in keys_new ) {
+        meta[key] = hashMap[key]
+    }
+
+   array = [ meta, it[1] ]
+    return array
 }

@@ -36,8 +36,8 @@ process TSV_MERGE {
     header_command = ''
     for (v in [files, suffixes].transpose()) {
         file = v[0]
-        suffix = v[1]
-        header_command += "head -n 1 ${file} | sed 's/\\t/__${suffix}\\t/g' | sed 's/\$/__${suffix}/' | sed 's/#//g' | tr '\\n' '\\t' >> header.txt\n"
+        suffix = v[1].length()>0 ? '__'+v[1] : ''
+        header_command += "head -n 1 ${file} | sed 's/\\t/${suffix}\\t/g' | sed 's/\$/${suffix}/' | sed 's/#//g' | tr '\\n' '\\t' >> header.txt\n"
     }
 
     """
