@@ -19,7 +19,7 @@ process PARQUET2FASTQ {
     tuple val(meta), path(parquets)
 
     output:
-    tuple val(meta), path(parquets), path("*.fq.gz"), emit: output
+    tuple val(meta), path("*.fq.gz"), path(parquets), emit: output
     path  "*.version.txt"         , emit: version
 
     script:

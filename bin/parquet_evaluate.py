@@ -49,6 +49,7 @@ with open(columns_schema, 'r') as input_file:
                         raise ValueError(e)
 
         # Evaluate expression:
+        print(column_expression, column_name)
         result = eval(column_expression)
 
         if column_format.lower()=='str':

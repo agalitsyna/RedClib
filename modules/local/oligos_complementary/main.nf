@@ -78,9 +78,9 @@ process OLIGOS_CHECK_COMPLEMENTARY {
     # Merge two tabular outputs:
     # design header
     head -n 1 ${prefix}.${meta_reads.id}.${meta_oligos_bridge_forward.id}.${meta_oligos_ggg.id}.hits_complementary.R1.tsv \\
-     | sed 's/\\t/__complementaryHits_R1\\t/g' | sed 's/\$/__complementaryHits_R1/' | sed 's/#//g' | tr '\\n' '\\t' > ${prefix}.complementaryHits.tsv
+     | sed 's/\\t/__complementary_R1\\t/g' | sed 's/\$/__complementary_R1/' | sed 's/#//g' | tr '\\n' '\\t' > ${prefix}.complementaryHits.tsv
     head -n 1 ${prefix}.${meta_reads.id}.${meta_oligos_bridge_forward.id}.${meta_oligos_ggg.id}.hits_complementary.R2.tsv \\
-     | sed 's/\\t/__complementaryHits_R2\\t/g' | sed 's/\$/__complementaryHits_R2/' | sed 's/#//g' | tr '\\n' '\\t' >> ${prefix}.complementaryHits.tsv
+     | sed 's/\\t/__complementary_R2\\t/g' | sed 's/\$/__complementary_R2/' | sed 's/#//g' | tr '\\n' '\\t' >> ${prefix}.complementaryHits.tsv
     sed -i "s/\\t\$/\\n/" ${prefix}.complementaryHits.tsv
     # write to the body
     paste <(tail -n +2 ${prefix}.${meta_reads.id}.${meta_oligos_bridge_forward.id}.${meta_oligos_ggg.id}.hits_complementary.R1.tsv) \\

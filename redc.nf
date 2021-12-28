@@ -67,7 +67,10 @@ include { FASTUNIQ as TABLE_FASTUNIQ} from './modules/local/fastuniq/main' addPa
 
 include { TRIMMOMATIC as FASTQ_TRIM } from './modules/local/trimmomatic/main' addParams( options: [args: trimmomatic_params, suffix:'.trim', args2: [gzip: false]])
 include { TABLE_TRIM } from './modules/local/table_trimmomatic' addParams( options: [:] )
-include { HISAT2_ALIGN as HISAT2_ALIGN_RNA } from './modules/local/hisat2/main' addParams( options: [args:'--known-splicesite-infile', suffix:'.rna'] )
+
+include { HISAT2_ALIGN as HISAT2_ALIGN_RNA1 } from './modules/local/hisat2/main' addParams( options: [args:'-k 10 --no-softclip --dta-cufflinks --known-splicesite-infile', suffix:'.rna1'] )
+include { HISAT2_ALIGN as HISAT2_ALIGN_RNA2 } from './modules/local/hisat2/main' addParams( options: [args:'-k 10 --no-softclip --dta-cufflinks --known-splicesite-infile', suffix:'.rna2'] )
+include { HISAT2_ALIGN as HISAT2_ALIGN_DNA } from './modules/local/hisat2/main' addParams( options: [args:'-k 10 --no-softclip --no-spliced-alignment', suffix:'.dna'] )
 
 include { OLIGOS_MAP } from './subworkflows/local/oligos_map' addParams( options: [:] )
 
@@ -78,6 +81,8 @@ include { PARQUET_CONVERT as TABLE_CONVERT } from './modules/local/parquet_conve
 
 include { PARQUET_EVALUATE as TABLE_EVALUATE_FRAGMENTS } from './modules/local/parquet_evaluate'  addParams( options: [args: [format:'int'], suffix:'.fragments'] )
 include { PARQUET2FASTQ as FRAGMENTS_TO_FASTQ } from './modules/local/parquet2fastq'  addParams( options: [args: [:], suffix:'.fragments'] )
+def dna_extension = params.fragments.dna.get("extension_suffix", "")
+include { FASTQ_EXTEND as FASTQ_EXTEND_DNA } from './modules/local/extend_fastq/main' addParams( options: [args: [suffix: dna_extension], args2: [gzip: true]] )
 
 // Define workflow
 workflow REDC {
@@ -99,32 +104,32 @@ workflow REDC {
     // split input into chunks if chunksize was passed
     FastqChunks = chunksize ? INPUT_SPLIT(Fastq) : Fastq
 
-//    /* Prepare genome and annotations */
-//    // Prepare genome (index, chromosome sizes and fasta)
-//    GENOME_PREPARE(Assembly)
-//    Hisat2Index = GENOME_PREPARE.out.genome_index
-//    GenomeFasta = GENOME_PREPARE.out.genome_fasta
-//
-//    // Restrict the genome or load pre-computed restriction sites
-//    if (check_restriction) {
-//        Renzymes = Channel
-//            .fromList(params.protocol.renzymes)
-//            .branch { it ->
-//                    forRestriction : !RenzymesPreloaded.containsKey(it) // Restrict only missing renzymes
-//                        return [renzyme: it, assembly: Assembly]
-//                    loaded : RenzymesPreloaded.containsKey(it) // Load files if restriction is pre-computed
-//                        return [[renzyme: it, assembly: Assembly], file(RenzymesPreloaded[it])]
-//                    }
-//        GENOME_RESTRICT(
-//            Renzymes.forRestriction,
-//            GenomeFasta
-//        )
-//        Restricted = GENOME_RESTRICT.out.genome_restricted.mix( Renzymes.loaded ) // Concatenate two outputs
-//    }
-//
-//    // Get the splice sites by hisat2 script
-//    GENOME_PREPARE_RNA_ANNOTATIONS(Assembly)
-//    SpliceSites = GENOME_PREPARE_RNA_ANNOTATIONS.out.genome_splicesites
+    /* Prepare genome and annotations */
+    // Prepare genome (index, chromosome sizes and fasta)
+    GENOME_PREPARE(Assembly)
+    Hisat2Index = GENOME_PREPARE.out.genome_index
+    GenomeFasta = GENOME_PREPARE.out.genome_fasta
+
+    // Restrict the genome or load pre-computed restriction sites
+    if (check_restriction) {
+        Renzymes = Channel
+            .fromList(params.protocol.renzymes)
+            .branch { it ->
+                    forRestriction : !RenzymesPreloaded.containsKey(it) // Restrict only missing renzymes
+                        return [renzyme: it, assembly: Assembly]
+                    loaded : RenzymesPreloaded.containsKey(it) // Load files if restriction is pre-computed
+                        return [[renzyme: it, assembly: Assembly], file(RenzymesPreloaded[it])]
+                    }
+        GENOME_RESTRICT(
+            Renzymes.forRestriction,
+            GenomeFasta
+        )
+        Restricted = GENOME_RESTRICT.out.genome_restricted.mix( Renzymes.loaded ) // Concatenate two outputs
+    }
+
+    // Get the splice sites by hisat2 script
+    GENOME_PREPARE_RNA_ANNOTATIONS(Assembly)
+    SpliceSites = GENOME_PREPARE_RNA_ANNOTATIONS.out.genome_splicesites
 
     /* Start of the reads processing */
     TableChunks = FASTQ_TABLE_CONVERT(FastqChunks).table
@@ -144,7 +149,7 @@ workflow REDC {
                              .combine( Hits.HitsComplementary.map{ it -> [ [it[0]['id']], it ] }, by: 0 )
                              .multiMap{id, ch1, ch2, ch3, ch4, ch5 ->
                                 dataset: [ch1[0], [ch1[1], ch2[1], ch3[1], ch4[1], ch5[1]]]
-                                suffixes: ['', '', '', '', '__complementary']
+                                suffixes: ['', '', '', '', '']
                            }
     ResultingTable = TABLE_MERGE( TablesGrouped ).output
 
@@ -173,23 +178,44 @@ workflow REDC {
                                         bin_reads: update_meta( [meta_pq, [pq1, pq2]],
                                                                 [fragment: fragment.fragment,
                                                                  side: fragment.params.side,
+                                                                 single_end: true,
                                                                  selection_criteria: fragment.params.selection_criteria] )
                                    }
 
-    FRAGMENTS_TO_FASTQ( FragmentsSelection )
+    FragmentsFastq = FRAGMENTS_TO_FASTQ( FragmentsSelection ).output
 
+    /* Define channels for Fastq files with fragments: */
+    FastqRNA1 = FragmentsFastq.filter{ it[0].fragment == 'rna1' }
+    FastqRNA2 = FragmentsFastq.filter{ it[0].fragment == 'rna2' }
+    if (dna_extension) {
+        FastqDNA = FASTQ_EXTEND_DNA (
+            FragmentsFastq.filter{ it[0].fragment == 'dna' }
+        ).fastq
+    } else {
+        FastqDNA = FragmentsFastq.filter{ it[0].fragment == 'dna' }
+    }
 
-    //EXTEND (
-    //    ch_parsed.dna
-    //)
+    HISAT2_ALIGN_RNA1 (
+            FastqRNA1,
+            Hisat2Index,
+            SpliceSites
+    )
 
-    //HISAT2_ALIGN_RNA (
-    //        ch_fastq,
-    //        hisat2_index,
-    //        hisat2_splicesites
-    //)
+    HISAT2_ALIGN_RNA2 (
+            FastqRNA2,
+            Hisat2Index,
+            SpliceSites
+    )
 
-    //HISAT2_ALIGN_RNA.out.bam.view()
+    HISAT2_ALIGN_DNA (
+            FastqDNA,
+            Hisat2Index,
+            SpliceSites
+    )
+
+    HISAT2_ALIGN_RNA1.out.bam.view()
+    HISAT2_ALIGN_RNA2.out.bam.view()
+    HISAT2_ALIGN_DNA.out.bam.view()
 
 }
 
