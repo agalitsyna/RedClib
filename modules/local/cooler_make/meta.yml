@@ -1,0 +1,48 @@
+name: cooler_make
+description: Make cooler file out of custom test table, given the chromosome sizes file and resolution
+keywords:
+    - cooler
+    - makebins
+    - load pairs
+
+tools:
+  - cooler:
+      description: Purpose of the tool
+      homepage: https://github.com/open2c/cooler
+      documentation: http://cooler.readthedocs.org/en/latest/
+      doi: "10.1093/bioinformatics/btz540"
+      licence: ['BSD 3-Clause License']
+
+input:
+  - meta:
+      type: map
+      description: |
+          Groovy Map containing sample information
+          e.g. [ id:'test' ]
+  - table:
+      type: tsv file
+      description: |
+          Input tsv file with pairs
+  - chromsizes:
+      type: tsv file
+      description: |
+          Input file with chromosome sizes,
+          of fixed format. Should be headerless with two-columns: chromname - chromsize
+
+output:
+  - meta:
+      type: map
+      description: |
+          Groovy Map containing sample information
+          e.g. [ id:'test']
+  - cool:
+      type: file
+      descrption: |
+          output cool file
+  - version:
+      type: file
+      description: File containing software version
+      pattern: "*.{version.txt}"
+
+authors:
+    - "@agalitsyna"

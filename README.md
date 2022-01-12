@@ -36,8 +36,17 @@ bash ./bin/prepare_binaries.sh
 2. Run test example:
 
 ```
-nextflow run main.nf -profile test,conda,debug
+nextflow run redc.nf -profile test,conda,debug
 ```
 
 This example should take up to 4 minutes. 
 you may want to check that the results are the same as we provide in `output/` folder. 
+
+
+### Execution tracing
+
+Nextflow allows [tracing and visualization of the execution](https://www.nextflow.io/docs/latest/tracing.html)
+of your pipeline:
+```
+nextflow run redc.nf -profile test,conda,debug -with-dag flowchart.png -with-report report.html -with-timeline timeline.html
+```

@@ -68,10 +68,6 @@ include { FASTUNIQ as TABLE_FASTUNIQ} from './modules/local/fastuniq/main' addPa
 include { TRIMMOMATIC as FASTQ_TRIM } from './modules/local/trimmomatic/main' addParams( options: [args: trimmomatic_params, suffix:'.trim', args2: [gzip: false]])
 include { TABLE_TRIM } from './modules/local/table_trimmomatic' addParams( options: [:] )
 
-include { HISAT2_ALIGN as HISAT2_ALIGN_RNA1 } from './modules/local/hisat2/main' addParams( options: [args:'-k 10 --no-softclip --dta-cufflinks --known-splicesite-infile', suffix:'.rna1'] )
-include { HISAT2_ALIGN as HISAT2_ALIGN_RNA2 } from './modules/local/hisat2/main' addParams( options: [args:'-k 10 --no-softclip --dta-cufflinks --known-splicesite-infile', suffix:'.rna2'] )
-include { HISAT2_ALIGN as HISAT2_ALIGN_DNA } from './modules/local/hisat2/main' addParams( options: [args:'-k 10 --no-softclip --no-spliced-alignment', suffix:'.dna'] )
-
 include { OLIGOS_MAP } from './subworkflows/local/oligos_map' addParams( options: [:] )
 
 include { TSV_MERGE as TABLE_MERGE } from './modules/local/tsv_merge/main' addParams( options: [args: [:], suffix: '.table'] )
@@ -83,6 +79,18 @@ include { PARQUET_EVALUATE as TABLE_EVALUATE_FRAGMENTS } from './modules/local/p
 include { PARQUET2FASTQ as FRAGMENTS_TO_FASTQ } from './modules/local/parquet2fastq'  addParams( options: [args: [:], suffix:'.fragments'] )
 def dna_extension = params.fragments.dna.get("extension_suffix", "")
 include { FASTQ_EXTEND as FASTQ_EXTEND_DNA } from './modules/local/extend_fastq/main' addParams( options: [args: [suffix: dna_extension], args2: [gzip: true]] )
+
+include { HISAT2_ALIGN as HISAT2_ALIGN_RNA1 } from './modules/local/hisat2/main' addParams( options: [args:'-k 10 --no-softclip --dta-cufflinks --known-splicesite-infile', suffix:'.rna1'] )
+include { HISAT2_ALIGN as HISAT2_ALIGN_RNA2 } from './modules/local/hisat2/main' addParams( options: [args:'-k 10 --no-softclip --dta-cufflinks --known-splicesite-infile', suffix:'.rna2'] )
+include { HISAT2_ALIGN as HISAT2_ALIGN_DNA } from './modules/local/hisat2/main' addParams( options: [args:'-k 10 --no-softclip --no-spliced-alignment', suffix:'.dna'] )
+
+include { BAM2BED as BAM2BED_RNA1 } from './modules/local/bam2bed/main' addParams( options: [filter: 'samtools view -h -F 4 -d XM:0 -d XM:1 -d XM:2', filter2: 'samtools view -h -d NH:1 -', suffix: '.rna1'])
+include { BAM2BED as BAM2BED_RNA2 } from './modules/local/bam2bed/main' addParams( options: [filter: 'samtools view -h -F 4 -d XM:0 -d XM:1 -d XM:2', filter2: 'samtools view -h -d NH:1 -', suffix: '.rna2'])
+include { BAM2BED as BAM2BED_DNA  } from './modules/local/bam2bed/main' addParams( options: [filter: 'samtools view -h -F 4 -d XM:0 -d XM:1 -d XM:2', filter2: 'samtools view -h -d NH:1 -', suffix: '.dna'])
+
+
+include { COOLER_MAKE  } from './modules/local/cooler_make/main' addParams( options: [assembly: Assembly, resolution: params.get("cooler_resolution", 1000000)])
+
 
 // Define workflow
 workflow REDC {
@@ -214,8 +222,16 @@ workflow REDC {
     )
 
     HISAT2_ALIGN_RNA1.out.bam.view()
-    HISAT2_ALIGN_RNA2.out.bam.view()
-    HISAT2_ALIGN_DNA.out.bam.view()
+    BAM2BED_RNA1 ( HISAT2_ALIGN_RNA1.out.bam)
+    BAM2BED_RNA2 ( HISAT2_ALIGN_RNA2.out.bam)
+    BAM2BED_DNA  ( HISAT2_ALIGN_DNA.out.bam)
+
+    // TODO: make custom table as output
+//    ChromSizes = GENOME_PREPARE.out.chromsizes
+//    COOLER_MAKE (
+//        FinalTable,
+//        ChromSizes
+//    )
 
 }
 
