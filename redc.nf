@@ -88,8 +88,10 @@ include { BAM2BED as BAM2BED_RNA1 } from './modules/local/bam2bed/main' addParam
 include { BAM2BED as BAM2BED_RNA2 } from './modules/local/bam2bed/main' addParams( options: [filter: 'samtools view -h -F 4 -d XM:0 -d XM:1 -d XM:2', filter2: 'samtools view -h -d NH:1 -', suffix: '.rna2'])
 include { BAM2BED as BAM2BED_DNA  } from './modules/local/bam2bed/main' addParams( options: [filter: 'samtools view -h -F 4 -d XM:0 -d XM:1 -d XM:2', filter2: 'samtools view -h -d NH:1 -', suffix: '.dna'])
 
+include { BED_ANNOTATE_RESTRICTION as BED_ANNOTATE_RESTRICTION_RNA1 } from './modules/local/bed_annotate_restriction'  addParams( options: [args: [:], suffix:'.rna1'] )
+include { BED_ANNOTATE_RESTRICTION as BED_ANNOTATE_RESTRICTION_RNA2 } from './modules/local/bed_annotate_restriction'  addParams( options: [args: [:], suffix:'.rna2'] )
 
-include { COOLER_MAKE  } from './modules/local/cooler_make/main' addParams( options: [assembly: Assembly, resolution: params.get("cooler_resolution", 1000000)])
+//include { COOLER_MAKE  } from './modules/local/cooler_make/main' addParams( options: [assembly: Assembly, resolution: params.get("cooler_resolution", 1000000)])
 
 
 // Define workflow
@@ -225,6 +227,13 @@ workflow REDC {
     BAM2BED_RNA1 ( HISAT2_ALIGN_RNA1.out.bam)
     BAM2BED_RNA2 ( HISAT2_ALIGN_RNA2.out.bam)
     BAM2BED_DNA  ( HISAT2_ALIGN_DNA.out.bam)
+
+    RestrictedPlus = Restricted.map{ update_meta(it, [renz_strand: "+"] ) }
+    RestrictedMinus = Restricted.map{ update_meta(it, [renz_strand: "-"] ) }
+    RestrictedExtended = RestrictedPlus.mix( RestrictedMinus )
+    RestrictedExtended.view()
+    BED_ANNOTATE_RESTRICTION_RNA1 ( BAM2BED_RNA1.out.bed, RestrictedExtended )
+    BED_ANNOTATE_RESTRICTION_RNA2 ( BAM2BED_RNA2.out.bed, RestrictedExtended )
 
     // TODO: make custom table as output
 //    ChromSizes = GENOME_PREPARE.out.chromsizes

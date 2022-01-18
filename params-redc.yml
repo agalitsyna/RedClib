@@ -1,0 +1,114 @@
+filters:
+        # Restriction filters:
+        restriction:
+                rna2_mme_failed: # <- filter name
+                        - '(rna2_strand=="+") & (rna2_start_mmep_left<=-26) & (rna2_start_mmep_left>=-27)'
+                        - '(rna2_strand=="+") & (rna2_start_mmen_right<=19) & (rna2_start_mmen_right>=-18)'
+                        - '(rna2_strand=="-") & (rna2_end_mmep_left<=-25) & (rna2_end_mmep_left>=-26)'
+                        - '(rna2_strand=="-") & (rna2_end_mmen_right<=21) & (rna2_end_mmen_right>=20)'
+                rna2_nla_failed:
+                        - '(rna2_strand=="+") & (rna2_start_nla_left>=-5) & (rna2_start_nla_left<=0)'
+                        - '(rna2_strand=="+") & (rna2_start_nla_right>=0) & (rna2_start_nla_right<=1)'
+                        - '(rna2_strand=="-") & (rna2_end_nla_left>=-5) & (rna2_end_nla_left<=0)'
+                        - '(rna2_strand=="-") & (rna2_end_nla_right>=0) & (rna2_end_nla_right<=1)'
+                rna1_nla_failed:
+                        - '(rna1_strand=="+") & (rna1_start_nla_left>=-5) & (rna1_start_nla_left<=0)'
+                        - '(rna1_strand=="+") & (rna1_start_nla_right>=0) & (rna1_start_nla_right<=1)'
+                        - '(rna1_strand=="-") & (rna1_end_nla_left>=-5) & (rna1_end_nla_left<=0)'
+                        - '(rna1_strand=="-") & (rna1_end_nla_right>=0) & (rna1_end_nla_right<=1)'
+
+        # Pattern for filtering the relevant chromosomes:
+        canonical_chromosomes: "chr[0-9,X,Y]|chr[0-9][0-9]"
+
+        additional_filters:
+                RNAsDirectionPassed: "(rna2_chr==rna1_chr) & (rna2_strand!=rna1_strand)"
+                RNADNASamePos: "(dna_chr==rna2_chr) & (dna_strand!=rna2_strand) & (np.abs(dna_start-rna2_end)<=1)"
+                # Filter 1: Read is not PCR duplication
+                F1_notDup: "(is_notPCRdup)"
+                # Filter 2: there is a bridge in the read, with last AG letters, it is not cut by the quality filter
+                F2_goodBridge: "~has_nobridge & has_GA"
+                # Filter 3: Reverse read starts with GGG
+                F3_goodGGG: "~has_noggg"
+                # Filter 4: DNA length 18-20
+                F4_goodDNAlength: "(dna_R1_len_notrim>=18)&(dna_R1_len_notrim<=20)"
+                # Filter 5: RNA is >= 14 bp before trimming and RNA1 >= 14 bp
+                F5_goodRNAlength: "(rna1_R1_len_notrim>=14)&(rna2_R2_len_notrim>=14)"
+                # Filter 6: Trimming passed
+                F6_passedTrimming: "(trimF>0)&(trimR>0)"
+                # Filter 6a: Trimmed segments are > 14 bp
+                F6a_passedTrimming_strict: "(dna_R1_len_trim_adjusted>=18)&(dna_R1_len_trim_adjusted<=20)&(rna1_R1_len_trim_adjusted>=14)&(rna2_R2_len_trim_adjusted>=14)"
+                # Filter 7: All three segments are uniquely mapped to chromosomes
+                F7_uniqueCanonical: "dna_is_not_multi & rna1_is_not_multi & rna2_is_not_multi & dna_is_mapped & rna1_is_mapped & rna2_is_mapped & dna_chr_canonical & rna1_chr_canonical & rna2_chr_canonical"
+                F7a_RNAsameChr: "rna1_chr==rna2_chr"
+                F7b_RNAoppositeStrands: "rna1_strand!=rna2_strand"
+                # Filter 8a: Same pos of DNA and RNA
+                F8a_notRNADNASamePos: "~RNADNASamePos"
+                # Filter 8b: Confirm absence of NlaIII and MmeI influence on RNA
+                F8b_RNAnotDigested: "~rna1_nla_failed & ~rna2_nla_failed & ~rna2_mme_failed"
+                # Filter 9: RNA1 and RNA distance is small enough
+                F9_closeRNA: "np.abs(rna2_start-rna1_start)<1e4"
+
+                # Applying sequential filters, similar ones were used in the supplementary table for RedC paper:
+                V0:  "(np.ones(len(F1_notDup)))"
+                V1:  "(F1_notDup)"
+                V2:  "(F1_notDup & F2_goodBridge)"
+                V3:  "(V2 & F3_goodGGG)"
+                V4:  "(V3 & F4_goodDNAlength)"
+                V35: "(V3 & F5_goodRNAlength)"
+                V5:  "(V4 & F5_goodRNAlength)"
+                V24: "(V2 & F4_goodDNAlength)"
+                V25: "(V2 & F5_goodRNAlength)"
+                V6:  "(V5 & F6_passedTrimming)"
+                V6a: "(V5 & F6a_passedTrimming_strict)"
+                V7:  "(V5 & F6_passedTrimming & F6a_passedTrimming_strict & F7_uniqueCanonical)"
+                V7a: "(V7 & F7a_RNAsameChr)"
+                V7b: "(V7 & F7a_RNAsameChr & F7b_RNAoppositeStrands)"
+                V8a: "(V7b & F8a_notRNADNASamePos)"
+                V8b: "(V7b & F8a_notRNADNASamePos & F8b_RNAnotDigested)"
+                V9:  "(V8b & F9_closeRNA)"
+
+
+output:
+    make_final_table: true
+    tables:
+        # You may specify one or multiple tables for different filters and sets of output columns.
+        # Syntax:
+        # table_name:
+        #    filter: "filter_name"
+        #    header: "<list-of-columns>"
+        resulting_table1:
+            filter: "V9"
+            header: "id rna1_chr rna1_start rna1_end rna1_strand rna1_cigar rna2_chr rna2_start rna2_end rna2_strand rna2_cigar dna_chr dna_start dna_end dna_strand dna_cigar"
+        # Demonstration of alternative table structure. Note that this table will be huge and useless for real data:
+        resulting_table2:
+            filter: "V1"
+            header: "id V9 seqR1 seqR2"
+
+    make_cooler: true
+    cooler_properties: # Describe what to use for coolers (required):
+        table_name: resulting_table1
+        resolution: 1000
+        c1: 2   # Column with chromosome name for RNA part
+        c2: 12  # Column with chromosome name for DNA part
+        p1: 3   # Column with start for RNA part
+        p2: 13  # Column with start for DNA part
+
+    # Report the sum over the following columns:
+    report_stats:
+            - V0
+            - V1
+            - V2
+            - V3
+            - V4
+            - V5
+            - V35
+            - V24
+            - V25
+            - V6
+            - V6a
+            - V7
+            - V7a
+            - V7b
+            - V8a
+            - V8b
+            - V9
