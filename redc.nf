@@ -91,6 +91,8 @@ include { BAM2BED as BAM2BED_DNA  } from './modules/local/bam2bed/main' addParam
 include { BED_ANNOTATE_RESTRICTION as BED_ANNOTATE_RESTRICTION_RNA1 } from './modules/local/bed_annotate_restriction'  addParams( options: [args: [:], suffix:'.rna1'] )
 include { BED_ANNOTATE_RESTRICTION as BED_ANNOTATE_RESTRICTION_RNA2 } from './modules/local/bed_annotate_restriction'  addParams( options: [args: [:], suffix:'.rna2'] )
 
+include { PARQUET_EVALUATE as TABLE_EVALUATE_FILTERS } from './modules/local/parquet_evaluate'  addParams( options: [args: [format:'int'], suffix:'.filters'] )
+
 //include { COOLER_MAKE  } from './modules/local/cooler_make/main' addParams( options: [assembly: Assembly, resolution: params.get("cooler_resolution", 1000000)])
 
 
@@ -197,7 +199,7 @@ workflow REDC {
     /* Define channels for Fastq files with fragments: */
     FastqRNA1 = FragmentsFastq.filter{ it[0].fragment == 'rna1' }
     FastqRNA2 = FragmentsFastq.filter{ it[0].fragment == 'rna2' }
-    if (dna_extension) {
+    if (dna_extension) { // todo: check cardinality of the channel
         FastqDNA = FASTQ_EXTEND_DNA (
             FragmentsFastq.filter{ it[0].fragment == 'dna' }
         ).fastq
@@ -205,25 +207,24 @@ workflow REDC {
         FastqDNA = FragmentsFastq.filter{ it[0].fragment == 'dna' }
     }
 
-    HISAT2_ALIGN_RNA1 (
+    HISAT2_ALIGN_RNA1 (  // todo: check cardinality of the channel
             FastqRNA1,
             Hisat2Index,
             SpliceSites
     )
 
-    HISAT2_ALIGN_RNA2 (
+    HISAT2_ALIGN_RNA2 ( // todo: check cardinality of the channel
             FastqRNA2,
             Hisat2Index,
             SpliceSites
     )
 
-    HISAT2_ALIGN_DNA (
+    HISAT2_ALIGN_DNA ( // todo: check cardinality of the channel
             FastqDNA,
             Hisat2Index,
             SpliceSites
     )
 
-    HISAT2_ALIGN_RNA1.out.bam.view()
     BAM2BED_RNA1 ( HISAT2_ALIGN_RNA1.out.bam)
     BAM2BED_RNA2 ( HISAT2_ALIGN_RNA2.out.bam)
     BAM2BED_DNA  ( HISAT2_ALIGN_DNA.out.bam)
@@ -231,11 +232,29 @@ workflow REDC {
     RestrictedPlus = Restricted.map{ update_meta(it, [renz_strand: "+"] ) }
     RestrictedMinus = Restricted.map{ update_meta(it, [renz_strand: "-"] ) }
     RestrictedExtended = RestrictedPlus.mix( RestrictedMinus )
-    RestrictedExtended.view()
-    BED_ANNOTATE_RESTRICTION_RNA1 ( BAM2BED_RNA1.out.bed, RestrictedExtended )
-    BED_ANNOTATE_RESTRICTION_RNA2 ( BAM2BED_RNA2.out.bed, RestrictedExtended )
 
-    // TODO: make custom table as output
+    BED_ANNOTATE_RESTRICTION_RNA1 ( join_2_channels(BAM2BED_RNA1.out.bed, ResultingParquetTable, 'id'), RestrictedExtended )
+    BED_ANNOTATE_RESTRICTION_RNA2 ( join_2_channels(BAM2BED_RNA2.out.bed, ResultingParquetTable, 'id'), RestrictedExtended )
+
+
+    def FiltersColumns = [:] // todo: add necessary check here
+    for (filter_name in params.filters.keySet()){
+        filter_params = params.filters[filter_name]
+        if (filter_params instanceof List) {
+            filter_params = "(" + filter_params.join(") | (") + ")"
+        }
+        FiltersColumns[filter_name] = filter_params
+    }
+    Filters = Channel.from(FiltersColumns)
+
+    TABLE_EVALUATE_FILTERS( ResultingParquetTableWithFragments
+                                .combine( FragmentsFilters )
+                                .multiMap{meta, id, filt ->
+                                          pq: [meta, id]
+                                          filters: filt }
+                              ).parquet.view()
+
+    // TODO: add custom tables as output
 //    ChromSizes = GENOME_PREPARE.out.chromsizes
 //    COOLER_MAKE (
 //        FinalTable,

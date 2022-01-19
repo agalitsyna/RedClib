@@ -20,27 +20,27 @@ import numpy as np
 import pandas as pd
 from sys import argv
 
-if not len(argv)==5:
+if not len(argv) == 5:
     raise Exception("Number of arguments is too small")
 
-filename_bed    = argv[1]
+filename_bed = argv[1]
 filename_rsites = argv[2]
-strand  = argv[3]
+strand = argv[3]
 outfile = argv[4]
 
 try:
-  rsites = pd.read_csv(filename_rsites, header=None, sep='\t')
+    rsites = pd.read_csv(filename_rsites, header=None, sep="\t")
 except pd.errors.EmptyDataError:
-  rsites = pd.DataFrame(columns=np.arange(6))
-rsites.columns = ['chrom', 'start', 'end', 'name', '_', 'strand']
-rsites = rsites.loc[rsites.strand == strand, :].sort_values(['chrom', 'start'])
-rsites_grouped = rsites.groupby('chrom')
+    rsites = pd.DataFrame(columns=np.arange(6))
+rsites.columns = ["chrom", "start", "end", "name", "_", "strand"]
+rsites = rsites.loc[rsites.strand == strand, :].sort_values(["chrom", "start"])
+rsites_grouped = rsites.groupby("chrom")
 
 try:
-  bed_file = pd.read_csv(filename_bed, sep='\t', header=None)
+    bed_file = pd.read_csv(filename_bed, sep="\t", header=None)
 except pd.errors.EmptyDataError:
-  bed_file = pd.DataFrame(columns=np.arange(7))
-bed_file.columns = ['chrom', 'start', 'end', 'read_id', 'q', 'strand', 'cigar']
+    bed_file = pd.DataFrame(columns=np.arange(7))
+bed_file.columns = ["chrom", "start", "end", "read_id", "q", "strand", "cigar"]
 
 chs = bed_file.chrom.values.astype(str)
 ids = bed_file.read_id.values.astype(str)
@@ -49,30 +49,36 @@ end = bed_file.end.values.astype(int)
 l = len(chs)
 
 dct = {}
-for k in ['start_left', 'start_right', 'end_left', 'end_right']:
+for k in ["start_left", "start_right", "end_left", "end_right"]:
     dct[k] = np.full(l, -1).astype(int)
 
 for ch in rsites_grouped.groups.keys():
-    rs = np.concatenate( [[-1e10], rsites_grouped.get_group(ch)['start'].values, [1e10]] )
+    rs = np.concatenate([[-1e10], rsites_grouped.get_group(ch)["start"].values, [1e10]])
     mask = chs == ch
 
     idx = np.digitize(bgn[mask], rs)
     bgns = rs[idx - 1]
     ends = rs[idx]
-    dct['start_left'][mask] = bgns - bgn[mask]
-    dct['start_right'][mask] = ends - bgn[mask]
+    dct["start_left"][mask] = bgns - bgn[mask]
+    dct["start_right"][mask] = ends - bgn[mask]
 
     idx = np.digitize(end[mask], rs)
     bgns = rs[idx - 1]
     ends = rs[idx]
-    dct['end_left'][mask] = bgns - end[mask]
-    dct['end_right'][mask] = ends - end[mask]
+    dct["end_left"][mask] = bgns - end[mask]
+    dct["end_right"][mask] = ends - end[mask]
 
-with open(outfile, 'a') as outf:
+with open(outfile, "a") as outf:
     for i in range(l):
         outf.write(
-            ids[i] + " " + \
-            str(dct['start_left'][i]) + " " + \
-            str(dct['start_right'][i]) + " " + \
-            str(dct['end_left'][i]) + " " + \
-            str(dct['end_right'][i]) + "\n")
+            ids[i]
+            + " "
+            + str(dct["start_left"][i])
+            + " "
+            + str(dct["start_right"][i])
+            + " "
+            + str(dct["end_left"][i])
+            + " "
+            + str(dct["end_right"][i])
+            + "\n"
+        )

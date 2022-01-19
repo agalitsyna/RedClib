@@ -28,12 +28,12 @@ process PARQUET_EVALUATE {
     def prefix   = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
 
     def format = options.args.format
-    def command = "touch evaluation_schema.txt\n"
+    def cmd_create_evaluation_scheme = "printf '' > evaluation_schema.txt\n"
     for (filter in filters.keySet()) {
-        command += "printf \"${filter}\\t${format}\\t${filters[filter]}\\n\" >> evaluation_schema.txt\n"
+        cmd_create_evaluation_scheme += "printf \"${filter}\\t${format}\\t${filters[filter]}\\n\" >> evaluation_schema.txt\n"
     }
     """
-    ${command}
+    ${cmd_create_evaluation_scheme}
     parquet_evaluate.py ${parquet} evaluation_schema.txt ${prefix}.pq
 
     echo $VERSION > ${software}.version.txt

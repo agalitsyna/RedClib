@@ -13,14 +13,15 @@ process BED_ANNOTATE_RESTRICTION {
         mode: params.publish_dir_mode,
         saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
 
-    conda (params.enable_conda ? "anaconda::numpy anaconda::pandas" : null)
+    conda (params.enable_conda ? "${moduleDir}/environment_pyarrow_hdf5_cli.yml" : null)
 
     input:
     tuple val(meta), path(bed)
+    tuple val(meta), path(table)
     tuple val(meta_restr), path(restriction_sites)
 
     output:
-    tuple val(meta), path("*.tsv"), emit: output
+    tuple val(meta), path("*.pq"), emit: output
     path  "*.version.txt"         , emit: version
 
     script:
@@ -32,18 +33,23 @@ process BED_ANNOTATE_RESTRICTION {
     def segment_name = meta['fragment']
 
     def renz_strand_key = (renz_strand=="+") ? "p" : (renz_strand=="-") ? "n" : ""  // p, n or empty
-    def renz_strand_sub = (renz_strand=="+") ? "+" : (renz_strand=="-") ? "-" : "+" // + or - (also + is empty)
+    def renz_strand_sub = (renz_strand=="+") ? "+" : (renz_strand=="-") ? "-" : "b"
     def columns = [
+        "read_id_${segment_name}",
         "${segment_name}_start_${renz_key}${renz_strand_key}_left",
         "${segment_name}_start_${renz_key}${renz_strand_key}_right",
         "${segment_name}_end_${renz_key}${renz_strand_key}_left",
         "${segment_name}_end_${renz_key}${renz_strand_key}_right"
         ]
-    def header = (["id"]+columns).join(" ")
+    def header = columns.join(",")
 
     """
-    echo "${header}" > ${prefix}.${segment_name}.${renz_key}${renz_strand}.distances.txt
-    get_closest_sites.py ${bed} ${restriction_sites} ${renz_strand_sub} ${prefix}.${renz_key}${renz_strand}.distances.tsv
+    get_closest_sites.py -o ${prefix}.${renz_key}${renz_strand}.distances.pq \
+        --strand ${renz_strand_sub} \
+        --out-format parquet \
+        --columns ${header} \
+        --align-ids parquet::${table}::readID \
+        ${bed} ${restriction_sites}
 
     echo $VERSION > ${software}.version.txt
     """

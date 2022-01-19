@@ -1,0 +1,9 @@
+name: pyarrow
+channels:
+  - anaconda
+dependencies:
+  - pandas
+  - click
+  - numpy
+  - pip:
+    - pyarrow

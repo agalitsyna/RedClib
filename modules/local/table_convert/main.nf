@@ -30,7 +30,7 @@ process TABLE_CONVERT {
         """
         echo "#readID\tsample\tR\tQ"  > ${prefix}.fastq.tsv
         paste <(awk '{print \$1}' ${input_fq1} | sed 'N;N;N;s/\\n/ /g' | \
-                awk 'BEGIN{OFS="\\t"}{print \$1, "${prefix}", \$2, \$4}' ) >> ${prefix}.fastq.txt
+                awk 'BEGIN{OFS="\\t"}{print substr(\$1,2), "${prefix}", \$2, \$4}' ) >> ${prefix}.fastq.txt
 
         echo $VERSION > ${software}.version.txt
         """
@@ -40,7 +40,7 @@ process TABLE_CONVERT {
         """
         echo "#readID\tsample\tR1\tQ1\tR2\tQ2"  > ${prefix}.fastq.tsv
         paste <(awk '{print \$1}' ${input_fq1} | sed 'N;N;N;s/\\n/ /g' | \
-                awk 'BEGIN{OFS="\\t"}{print \$1, "${prefix}", \$2, \$4}' ) \
+                awk 'BEGIN{OFS="\\t"}{print substr(\$1,2), "${prefix}", \$2, \$4}' ) \
               <(awk '{print \$1}' ${input_fq2} | sed 'N;N;N;s/\\n/ /g' | \
                 awk 'BEGIN{OFS="\\t"}{print \$2, \$4}' ) >> ${prefix}.fastq.tsv
 

@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 from sys import argv
-if len(argv)<8:
-    print("""Convert parquet to fastq file
+
+if len(argv) < 8:
+    print(
+        """Convert parquet to fastq file
     The result of evaluation should be a vector of type column_format with the number of entries equal to the input size of array columns.
-    Usage: parquet2fastq.py fragment_name key_readid key_seq key_qual ${selection_criteria} output_filename pq1 pq2 ...}""")
+    Usage: parquet2fastq.py fragment_name key_readid key_seq key_qual ${selection_criteria} output_filename pq1 pq2 ...}"""
+    )
     exit()
 
 import pyarrow as pa
@@ -16,7 +19,7 @@ fragment_name = argv[1]
 key_readID = argv[2]
 key_sequence = argv[3]
 key_quality = argv[4]
-key_start, key_end = [f'{fragment_name}_start', f'{fragment_name}_end']
+key_start, key_end = [f"{fragment_name}_start", f"{fragment_name}_end"]
 
 selection_criteria = argv[5]
 output_file = argv[6]
@@ -29,7 +32,9 @@ for k in [key_start, key_end, key_readID, key_sequence, key_quality]:
             vars()[k] = pq_table[k].to_numpy()
             break
     else:
-        raise Exception(f"Column {k} not fount in parquets: {', '.join(input_parquets)}")
+        raise Exception(
+            f"Column {k} not fount in parquets: {', '.join(input_parquets)}"
+        )
 
 # Loading dataset keys as variables:
 loaded_ids = []
@@ -45,21 +50,23 @@ for node in ast.walk(syntax_tree):
                     loaded_ids.append(str(node.id))
                     break
             else:
-                raise Exception(f"Column {k} not fount in parquets: {', '.join(input_parquets)}")
+                raise Exception(
+                    f"Column {k} not fount in parquets: {', '.join(input_parquets)}"
+                )
 
 mask = eval(selection_criteria)
 selected = np.where(mask)[0]
 
-with open(output_file, 'w') as outf:
+with open(output_file, "w") as outf:
     readIDs = vars()[key_readID]
-    seqs  = vars()[key_sequence]
+    seqs = vars()[key_sequence]
     quals = vars()[key_quality]
     starts = vars()[key_start]
     ends = vars()[key_end]
     for i in selected:
-        outf.write( readIDs[i] + '\n' ) # Sequence name
-        outf.write( seqs[i][starts[i]:ends[i]] + '\n' ) # Sequence
-        outf.write( "+\n")
-        outf.write( quals[i][starts[i]:ends[i]] + '\n' ) # Qualities
+        outf.write(readIDs[i] + "\n")  # Sequence name
+        outf.write(seqs[i][starts[i] : ends[i]] + "\n")  # Sequence
+        outf.write("+\n")
+        outf.write(quals[i][starts[i] : ends[i]] + "\n")  # Qualities
 
 print(f"Done writing {len(selected)} sequences into {output_file} !")
