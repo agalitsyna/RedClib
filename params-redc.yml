@@ -17,7 +17,7 @@ filters:
           - '(rna1_strand=="-") & (rna1_end_nla_right>=0) & (rna1_end_nla_right<=1)'
 
   # Pattern for filtering the relevant chromosomes:
-  canonical_chromosomes: "chr[0-9,X,Y]|chr[0-9][0-9]"
+  ###canonical_chromosomes: "chr[0-9,X,Y]|chr[0-9][0-9]"
 
   # RNA-DNA localization and orientation filters:
   RNAsDirectionPassed: "(rna2_chr==rna1_chr) & (rna2_strand!=rna1_strand)"

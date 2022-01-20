@@ -75,7 +75,7 @@ include { TSV_MERGE as TABLE_MERGE } from './modules/local/tsv_merge/main' addPa
 include { PARQUET_CONVERT as TABLE_CONVERT } from './modules/local/parquet_convert/main' addParams( options: [args: [:]] )
 //include { PARQUET_MERGE as TABLE_MERGE } from './modules/local/parquet_merge/main' addParams( options: [args: [suffixes:['']]] )
 
-include { PARQUET_EVALUATE as TABLE_EVALUATE_FRAGMENTS } from './modules/local/parquet_evaluate'  addParams( options: [args: [format:'int'], suffix:'.fragments'] )
+include { PARQUET_EVALUATE as TABLE_EVALUATE_FRAGMENTS } from './modules/local/evaluate-tools/main'  addParams( options: [args: [format:'int'], suffix:'.fragments'] )
 include { PARQUET2FASTQ as FRAGMENTS_TO_FASTQ } from './modules/local/parquet2fastq'  addParams( options: [args: [:], suffix:'.fragments'] )
 def dna_extension = params.fragments.dna.get("extension_suffix", "")
 include { FASTQ_EXTEND as FASTQ_EXTEND_DNA } from './modules/local/extend_fastq/main' addParams( options: [args: [suffix: dna_extension], args2: [gzip: true]] )
@@ -91,7 +91,7 @@ include { BAM2BED as BAM2BED_DNA  } from './modules/local/bam2bed/main' addParam
 include { BED_ANNOTATE_RESTRICTION as BED_ANNOTATE_RESTRICTION_RNA1 } from './modules/local/bed_annotate_restriction'  addParams( options: [args: [:], suffix:'.rna1'] )
 include { BED_ANNOTATE_RESTRICTION as BED_ANNOTATE_RESTRICTION_RNA2 } from './modules/local/bed_annotate_restriction'  addParams( options: [args: [:], suffix:'.rna2'] )
 
-include { PARQUET_EVALUATE as TABLE_EVALUATE_FILTERS } from './modules/local/parquet_evaluate'  addParams( options: [args: [format:'int'], suffix:'.filters'] )
+include { PARQUET_EVALUATE as TABLE_EVALUATE_FILTERS } from './modules/local/evaluate-tools/main'  addParams( options: [args: [format:'bool'], suffix:'.filters'] )
 
 //include { COOLER_MAKE  } from './modules/local/cooler_make/main' addParams( options: [assembly: Assembly, resolution: params.get("cooler_resolution", 1000000)])
 
@@ -182,7 +182,7 @@ workflow REDC {
                                                                     .multiMap{meta, id, filt ->
                                                                               pq: [meta, id]
                                                                               filters: filt }
-                                                                  ).parquet
+                                                                  ).output
 
     FragmentsSelection = ResultingParquetTableWithFragments
                         .combine( Channel.fromList(params.fragments.collect { fragment, fragment_params -> [fragment: fragment, params:fragment_params] }) )
@@ -233,8 +233,8 @@ workflow REDC {
     RestrictedMinus = Restricted.map{ update_meta(it, [renz_strand: "-"] ) }
     RestrictedExtended = RestrictedPlus.mix( RestrictedMinus )
 
-    BED_ANNOTATE_RESTRICTION_RNA1 ( join_2_channels(BAM2BED_RNA1.out.bed, ResultingParquetTable, 'id'), RestrictedExtended )
-    BED_ANNOTATE_RESTRICTION_RNA2 ( join_2_channels(BAM2BED_RNA2.out.bed, ResultingParquetTable, 'id'), RestrictedExtended )
+    ParquetTableRestrictionRNA1 = BED_ANNOTATE_RESTRICTION_RNA1 ( join_2_channels(BAM2BED_RNA1.out.bed, ResultingParquetTable, 'id'), RestrictedExtended ).output
+    ParquetTableRestrictionRNA2 = BED_ANNOTATE_RESTRICTION_RNA2 ( join_2_channels(BAM2BED_RNA2.out.bed, ResultingParquetTable, 'id'), RestrictedExtended ).output
 
 
     def FiltersColumns = [:] // todo: add necessary check here
@@ -247,12 +247,19 @@ workflow REDC {
     }
     Filters = Channel.from(FiltersColumns)
 
-    TABLE_EVALUATE_FILTERS( ResultingParquetTableWithFragments
-                                .combine( FragmentsFilters )
-                                .multiMap{meta, id, filt ->
-                                          pq: [meta, id]
-                                          filters: filt }
-                              ).parquet.view()
+
+    ResultingParquetTable.view()
+    ResultingParquetTableWithFragments.view()
+    ParquetTableRestrictionRNA1.view()
+    ParquetTableRestrictionRNA2.view()
+
+
+//    TABLE_EVALUATE_FILTERS( ResultingParquetTableWithFragments
+//                                .combine( Filters )
+//                                .multiMap{meta, id, filt ->
+//                                          pq: [meta, id]
+//                                          filters: filt }
+//                              )
 
     // TODO: add custom tables as output
 //    ChromSizes = GENOME_PREPARE.out.chromsizes

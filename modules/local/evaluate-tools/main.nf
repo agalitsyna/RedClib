@@ -13,14 +13,14 @@ process PARQUET_EVALUATE {
         mode: params.publish_dir_mode,
         saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
 
-    conda (params.enable_conda ? "${moduleDir}/environment_pyarrow.yml" : null)
+    conda (params.enable_conda ? "${moduleDir}/environment_pyarrow_hdf5_cli.yml" : null)
 
     input:
-    tuple val(meta), path(parquet)
+    tuple val(meta), path(input)
     val(filters)
 
     output:
-    tuple val(meta), path(parquet), path("*.pq"), emit: parquet
+    tuple val(meta), path(input), path("*.pq"), emit: output
     path  "*.version.txt"         , emit: version
 
     script:
@@ -32,9 +32,17 @@ process PARQUET_EVALUATE {
     for (filter in filters.keySet()) {
         cmd_create_evaluation_scheme += "printf \"${filter}\\t${format}\\t${filters[filter]}\\n\" >> evaluation_schema.txt\n"
     }
+
+    def pq = ""
+    if (input instanceof List) {
+            pq = input.join(" ")
+        }
+    else {
+        pq = input
+    }
     """
     ${cmd_create_evaluation_scheme}
-    parquet_evaluate.py ${parquet} evaluation_schema.txt ${prefix}.pq
+    evaluate_expressions.py --in-format PARQUET --out-format PARQUET evaluation_schema.txt ${prefix}.pq ${pq}
 
     echo $VERSION > ${software}.version.txt
     """

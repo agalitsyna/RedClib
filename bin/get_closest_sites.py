@@ -2,7 +2,6 @@
 
 import numpy as np
 import pandas as pd
-from sys import argv
 import click
 
 # Read the arguments:
@@ -199,7 +198,8 @@ def get_closest_sites(
         h.create_dataset(columns[2], data=dct["start_right"])
         h.create_dataset(columns[3], data=dct["end_left"])
         h.create_dataset(columns[4], data=dct["end_right"])
-
+        h.close()
+        
     else:
         raise ValueError(f"Not implemented for format: {output_format}")
 

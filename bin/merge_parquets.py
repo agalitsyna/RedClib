@@ -3,7 +3,8 @@ from sys import argv
 
 if len(argv) < 3:
     print(
-        'Merge parquet tables by columns. Suffixes will be added to all column in the dataset after "__". Usage: merge_parquets.py output.pq file1.pq file2.pq file3.pq file4:suffix ... (any number of files)'
+        'Merge parquet tables by columns. Suffixes will be added to all column in the dataset after "__". '
+        'Usage: merge_parquets.py output.pq file1.pq file2.pq file3.pq file4:suffix ... (any number of files)'
     )
     exit()
 
