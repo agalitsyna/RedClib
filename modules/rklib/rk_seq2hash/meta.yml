@@ -1,0 +1,40 @@
+name: rk_seq2hash
+description: Encode input DNA in binary code (fastq2hash and fasta2hash)
+keywords:
+    - encode
+    - bin
+    - hashing
+
+tools:
+  - rklib:
+      description: Encodes each input DNA nucleotide as a 2-bit code for Rabin-Karp fast search of subsequence.
+      homepage: https://github.com/agalitsyna/rklib
+      licence: ['MIT']
+
+input:
+  - meta:
+      type: map
+      description: |
+          Groovy Map containing sample information
+          e.g. [ id:'test', single_end:false ]
+  - reads:
+      type: file
+      description: |
+          List of input FastQ files of size 1 and 2 for single-end and paired-end data,
+          respectively.
+
+output:
+  - meta:
+      type: map
+      description: |
+          Groovy Map containing sample information
+          e.g. [ id:'test', single_end:false, mode: 'fasta|fastq']
+  - bin:
+      type: file
+      description: File containing encoded sequences
+  - version:
+      type: file
+      description: File containing software version
+      pattern: "*.{version.txt}"
+authors:
+    - "@agalitsyna"

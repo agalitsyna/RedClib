@@ -1,0 +1,29 @@
+name: read_check_nucleotides
+description: Check presence of specific nucleotides as certain positions of the reads
+keywords:
+    - oligonucleotides
+    - search
+    - rnadna
+
+tools:
+  - rnadnatools:
+      description: Tools for manipulations with RNA-DNA sequencing data
+      homepage: https://github.com/agalitsyna/rnadnatools
+      licence: [ 'MIT' ]
+
+input:
+  - meta:
+      type: map
+      description: Map with metadata (assembly, resnzyme keys)
+  - TBA
+output:
+  - meta:
+      type: map
+      description: Map with metadata
+  - TBA
+  - version:
+      type: file
+      description: File containing software version
+      pattern: "*.{version.txt}"
+authors:
+    - "@agalitsyna"

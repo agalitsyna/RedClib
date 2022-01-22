@@ -1,0 +1,9 @@
+name: rnadnatools
+channels:
+  - bioconda
+  - anaconda
+dependencies:
+  - pip
+  - git
+  - pip:
+    - git+https://github.com/agalitsyna/rnadnatools

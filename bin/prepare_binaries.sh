@@ -1,10 +1,13 @@
 #!/bin/bash
 
-gcc -O3 -o bin/rk_querysearch lib/rk_querysearch.c lib/librk.c
-gcc -O3 -o bin/rk_pairwise  lib/rk_pairwise.c  lib/librk.c
-gcc -O3 -o bin/fasta2hash lib/fasta2hash.c lib/librk.c
-gcc -O3 -o bin/fastq2hash lib/fastq2hash.c lib/librk.c
+cd ./bin
+wget https://github.com/agalitsyna/rklib/archive/refs/heads/main.zip; unzip main.zip; cd rklib-main
+make; cd ../
+cp rklib-main/bin/* ./
+rm main.zip; rm -rf rklib-main
+cd ../
 
 wget https://raw.githubusercontent.com/DaehwanKimLab/hisat2/master/hisat2_extract_splice_sites.py -O ./bin/hisat2_extract_splice_sites.py
+chmod 777 ./bin/hisat2_extract_splice_sites.py
 
-echo "Binaries compiled!"
+echo "Binaries prepared!"

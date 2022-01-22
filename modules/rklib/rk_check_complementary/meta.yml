@@ -1,0 +1,40 @@
+name: rk_check_complementary
+description: Pairwise search of complementary sequences
+keywords:
+    - alignment
+    - complementary
+
+tools:
+  - rklib:
+      description: Align bin-encoded files with Rabin-Karp impementation of string search with mismatches
+      homepage: https://github.com/agalitsyna/rklib
+      licence: ['MIT']
+
+input:
+  - meta_reads:
+      type: map
+      description: |
+          Groovy Map containing reads information
+  - bin_reads:
+      type: file
+      description: |
+          List of input reads bin files of size 1 (single-end) or 2 (paired-end)
+  - TBA
+
+output:
+  - meta:
+      type: map
+      description: |
+          Groovy Map containing sample information
+          e.g. [ id:'test', single_end:false, oligo:'ggg' ]
+  - txt:
+      type: file
+      descrption: |
+          output txt file with mapped complementary oligos positions
+  - version:
+      type: file
+      description: File containing software version
+      pattern: "*.{version.txt}"
+
+authors:
+    - "@agalitsyna"

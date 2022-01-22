@@ -11,7 +11,7 @@ process FASTQ_DOWNLOAD {
         mode: params.publish_dir_mode,
         saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
 
-    conda (params.enable_conda ? "python=3.7 bioconda::sra-tools=2.11.0 bioconda::tabix=1.11" : null)
+    conda (params.enable_conda ? "${moduleDir}/environment.yml" : null)
 
     input:
     tuple val(meta), val(entry)

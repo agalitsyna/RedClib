@@ -6,7 +6,7 @@ params.options = [:]
 
 def chunksize = params.options.get('chunksize', 100000000000)*4
 
-include { FASTQ_SPLIT } from '../../modules/local/fastq_split/main' addParams( options: [args: [chunksize : chunksize]], outdir: "${params.outdir}/fastq_chunks" )
+include { FASTQ_SPLIT } from '../../modules/local/fastq_split/main' addParams( options: [args: [chunksize : chunksize]], outdir: "${params.outdir}" )
 
 /* Useful Groovy method */
 // Parse forward (left) and reverse (right) pieces of the file,

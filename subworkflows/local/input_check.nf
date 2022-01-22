@@ -4,7 +4,7 @@
 
 params.options = [:]
 
-include { FASTQ_DOWNLOAD } from '../../modules/local/fastq_download/main' addParams( options: [:] )
+include { FASTQ_DOWNLOAD as FASTQDOWNLOAD } from '../../modules/local/fastq_download/main' addParams( options: [:] )
 
 /* Useful Groovy method */
 // Return True if the file is sra
@@ -30,11 +30,11 @@ workflow INPUT_CHECK_DOWNLOAD {
                         return [ meta, fastq.flatten() ]
             }
 
-        FASTQ_DOWNLOAD(
+        FASTQDOWNLOAD(
                 reads.for_download
             )
 
-        FASTQ_DOWNLOAD.out.fastq
+        FASTQDOWNLOAD.out.fastq
             .mix(reads.ready)
             .map { create_fastq_channels(it) }
             .set { output }

@@ -1,0 +1,36 @@
+name: restrict_genome
+description: List restriction regognition sites for a given genomic FASTA and restriction enzyme
+keywords:
+    - fasta
+    - genome
+    - restriction
+    - rnadna
+
+tools:
+  - rnadnatools:
+      description: Tools for manipulations with RNA-DNA sequencing data
+      homepage: https://github.com/agalitsyna/rnadnatools
+      licence: [ 'MIT' ]
+
+input:
+  - meta:
+      type: map
+      description: Map with metadata (assembly, resnzyme keys)
+  - genome_fasta:
+      type: file
+      description: FASTA file with genomic sequence
+      pattern: "*.fa"
+
+output:
+  - meta:
+      type: map
+      description: Map with metadata
+  - genome_restricted:
+      type: file
+      description: bed file with positions of restriction enzyme recognition sites
+  - version:
+      type: file
+      description: File containing software version
+      pattern: "*.{version.txt}"
+authors:
+    - "@agalitsyna"

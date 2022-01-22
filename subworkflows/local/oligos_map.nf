@@ -4,12 +4,13 @@
 
 params.options = [:]
 
-include { BIN_ENCODE as BIN_OLIGOS } from '../../modules/local/bin_encode/main' addParams( options: [args: [mode: 'fasta']] ) // Bin input oligos from fasta file
-include { BIN_ENCODE as BIN_FASTQ }  from '../../modules/local/bin_encode/main' addParams( options: [args: [mode: 'fastq']] ) // Bin input fastq
+include { RKLIB_SEQ2HASH as BIN_OLIGOS } from '../../modules/rklib/rk_seq2hash/main' addParams( options: [args: [mode: 'fasta']] ) // Bin input oligos from fasta file
+include { RKLIB_SEQ2HASH as BIN_FASTQ }  from '../../modules/rklib/rk_seq2hash/main' addParams( options: [args: [mode: 'fastq']] ) // Bin input fastq
 
-include { OLIGOS_ALIGN } from '../../modules/local/align_encoded/main' addParams( options: [args: [:]] ) // Align oligos
-include { OLIGOS_CHECK as OLIGOS_CHECK_GA } from '../../modules/local/oligos_check/main' addParams( options: [args: [oligo: 'GA', position: 35, orientation: 'F']] ) // Check oligos presence
-include { OLIGOS_CHECK_COMPLEMENTARY } from '../../modules/local/oligos_complementary/main' addParams( options: [args: [rna_complementary_length: 14]] ) // Align comnplementary fragments of RNA
+include { RKLIB_QUERYSEARCH as OLIGOS_ALIGN} from '../../modules/rklib/rk_querysearch/main' addParams( options: [args: [:]] ) // Align oligos
+include { RKLIB_CHECK_COMPLEMENTARY as OLIGOS_CHECK_COMPLEMENTARY } from '../../modules/rklib/rk_check_complementary/main' addParams( options: [args: [rna_complementary_length: 14]] ) // Align comnplementary fragments of RNA
+
+include { RNADNATOOLS_READ_CHECK_NUCLEOTIDES as OLIGOS_CHECK_GA } from '../../modules/rnadnatools/read_check_nucleotides/main' addParams( options: [args: [oligo: 'GA', position: 35, orientation: 'F']] ) // Check oligos presence
 
 include { TSV_MERGE as TABLE_MERGE_OLIGOS } from '../../modules/local/tsv_merge/main' addParams( options: [args: [:], suffix: '.oligos'] )
 

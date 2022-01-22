@@ -1,0 +1,47 @@
+name: rk_querysearch
+description: Align bin-encoded files with custom script based on Rabin-Karp impementation of string search with mismatches
+keywords:
+    - alignment
+    - Rabin-Karp
+
+tools:
+  - rklib:
+      description: Align bin-encoded files with Rabin-Karp impementation of string search with mismatches
+      homepage: https://github.com/agalitsyna/rklib
+      licence: ['MIT']
+
+input:
+  - meta_oligos:
+      type: map
+      description: |
+          Groovy Map containing oligos information
+  - bin_oligos:
+      type: file
+      description: |
+          List of input oligo bin files of size 1
+  - meta_reads:
+      type: map
+      description: |
+          Groovy Map containing reads information
+  - bin_reads:
+      type: file
+      description: |
+          List of input reads bin files of size 1 (single-end) or 2 (paired-end)
+
+output:
+  - meta:
+      type: map
+      description: |
+          Groovy Map containing sample information
+          e.g. [ id:'test', single_end:false, oligo:'ggg' ]
+  - txt:
+      type: file
+      descrption: |
+          output txt file with mapped oligos positions
+  - version:
+      type: file
+      description: File containing software version
+      pattern: "*.{version.txt}"
+
+authors:
+    - "@agalitsyna"

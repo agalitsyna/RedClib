@@ -1,7 +1,0 @@
-name: pyarrow
-channels:
-  - anaconda
-dependencies:
-  - pandas
-  - pip:
-    - pyarrow

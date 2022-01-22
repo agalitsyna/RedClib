@@ -1,10 +1,10 @@
-name: tsv_merge
-description: Fast merge of TSV table with equal number of rows.
+name: fastq2table
+description: Convert fastq input into TSV output
 keywords:
-    - tsv
+    - fastq
 
 tools:
-  - shell commands (sed, paste, tail)
+  - linux shell commands
 
 input:
   - meta:
@@ -12,10 +12,6 @@ input:
       description: |
           Groovy Map containing sample information
           e.g. [ id:'test', single_end:false ]
-  - tables:
-      type: list of files
-      description: |
-          List of input tsv files, should have the same number of rows
 
 output:
   - meta:
@@ -23,14 +19,9 @@ output:
       description: |
           Groovy Map containing sample information
           e.g. [ id:'test', single_end:false ]
-  - tsv:
-      type: file
-      descrption: |
-          output tsv file with merged columns
   - version:
       type: file
       description: File containing software version
       pattern: "*.{version.txt}"
-
 authors:
     - "@agalitsyna"

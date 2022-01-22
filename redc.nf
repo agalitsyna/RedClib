@@ -4,9 +4,12 @@
 // 1. Check the specifications for all the modules. Restructure irrelevant as simple scripts.
 // 2. Process low/high check.
 // 3. Add checks for the read length.
-// 4. verify intermediate file names
-// 5. do not store the intermediary files
-// 6. Add hdf5 backend instead of pyarrow/parquet
+// 4. Verify intermediate file names
+// 5. Do not store the intermediary files
+// 6. Add backend choice hdf5/parquet/tsv/csv
+// 7. Remove non-deterministic steps to make resume work:
+// https://www.nextflow.io/blog/2019/troubleshooting-nextflow-resume.html
+// 8. Check cardinality of REDC:HISAT2_ALIGN_RNA1 and REDC:FASTQ_EXTEND_DNA
 
 nextflow.enable.dsl = 2
 
@@ -18,7 +21,7 @@ def helpMessage() {
 
     Usage:
     The typical command for launching the pipeline:
-      nextflow run main.nf -profile test,conda,debug
+      nextflow run main.nf -profile test,conda,debug -params-file params-redc.yml
 
     All the parameters should be listed in the profile file.
     """.stripIndent()
@@ -38,8 +41,6 @@ if (params.genome.genes_gtf) { GenesGtf = params.genome.genes_gtf } else { exit 
 
 // Check optional parameters
 def chunksize = params.get('chunksize', 0)
-def dedup_crop = params.get('dedup_crop', 50)
-def trimmomatic_params = params.get('trimmomatic_params', '')
 def check_restriction = params.get('check_restriction', false)
 def RenzymesPreloaded = Genome.get('restricted', {})
 
@@ -53,30 +54,37 @@ include { GENOME_PREPARE } from './modules/local/genome_prepare/main'  addParams
                                                             fasta: Genome.get("fasta", "")],
                                                             auto_download_genome: Genome.get("auto_download_genome", true)
                                                             ] ] )
-include { GENOME_RESTRICT } from './modules/local/genome_restrict/main' addParams( options: [:])
+include { RNADNATOOLS_GENOME_RECSITES as GENOME_RESTRICT } from './modules/rnadnatools/genome_recsites/main' addParams( options: [:])
 include { GENOME_PREPARE_RNA_ANNOTATIONS } from './modules/local/genome_prepare_rna_annotations/main' addParams( options: [args: [
                                                             genes_gtf: GenesGtf,
                                                             rna_annotation_suffix: Genome.get('rna_annotation_suffix', '')
                                                             ]])
 
-include { FASTQC } from './modules/nf-core/software/fastqc/main' addParams( options: [:] )
-include { TABLE_CONVERT as FASTQ_TABLE_CONVERT } from './modules/local/table_convert/main' addParams( options: [:] )
+//include { FASTQC } from './modules/nf-core/software/fastqc/main' addParams( options: [:] )
+include { FASTQ2TSV as TABLE_FASTQ2TSV } from './modules/local/fastq2table/main' addParams( options: [:] )
 
-include { TRIMMOMATIC as FASTQ_CROP } from './modules/local/trimmomatic/main' addParams( options: [args: 'CROP:'+dedup_crop, suffix:'.crop', args2: [gzip: false]])
-include { FASTUNIQ as TABLE_FASTUNIQ} from './modules/local/fastuniq/main' addParams( options: [:] )
-
-include { TRIMMOMATIC as FASTQ_TRIM } from './modules/local/trimmomatic/main' addParams( options: [args: trimmomatic_params, suffix:'.trim', args2: [gzip: false]])
-include { TABLE_TRIM } from './modules/local/table_trimmomatic' addParams( options: [:] )
+include { DEDUP_FASTUNIQ as TABLE_DEDUP } from './subworkflows/local/dedup_fastuniq' addParams( options: [:] )
+include { TRIMTABLE_CREATE as TABLE_TRIM } from './subworkflows/local/trimtable_create' addParams( options: [:] )
 
 include { OLIGOS_MAP } from './subworkflows/local/oligos_map' addParams( options: [:] )
 
 include { TSV_MERGE as TABLE_MERGE } from './modules/local/tsv_merge/main' addParams( options: [args: [:], suffix: '.table'] )
 
-include { PARQUET_CONVERT as TABLE_CONVERT } from './modules/local/parquet_convert/main' addParams( options: [args: [:]] )
-//include { PARQUET_MERGE as TABLE_MERGE } from './modules/local/parquet_merge/main' addParams( options: [args: [suffixes:['']]] )
+include { RNADNATOOLS_TABLE_CONVERT as TABLE_CONVERT } from './modules/rnadnatools/table_convert/main' addParams( options: [args: [
+                                                             input_format: 'tsv',
+                                                             output_format: 'parquet'
+                                                             ]])
+//include { RNADNATOOLS_TABLE_MERGE as TABLE_MERGE } from './modules/rnadnatools/table_merge/main' addParams( options: [args: [suffixes:['']]] )
 
-include { PARQUET_EVALUATE as TABLE_EVALUATE_FRAGMENTS } from './modules/local/evaluate-tools/main'  addParams( options: [args: [format:'int'], suffix:'.fragments'] )
-include { PARQUET2FASTQ as FRAGMENTS_TO_FASTQ } from './modules/local/parquet2fastq'  addParams( options: [args: [:], suffix:'.fragments'] )
+include { RNADNATOOLS_TABLE_EVALUATE as TABLE_EVALUATE_FRAGMENTS } from './modules/rnadnatools/table_evaluate/main'  addParams( options: [args: [
+                                                             format:'int',
+                                                             input_format: 'parquet',
+                                                             output_format: 'parquet'
+                                                             ], suffix:'.fragments'] )
+include { RNADNATOOLS_SEGMENT_EXTRACT_FASTQ as FRAGMENTS_TO_FASTQ } from './modules/rnadnatools/segment_extract_fastq/main'  addParams( options: [args: [
+                                                             input_format: 'parquet'
+                                                             ], suffix:'.fragments'] )
+
 def dna_extension = params.fragments.dna.get("extension_suffix", "")
 include { FASTQ_EXTEND as FASTQ_EXTEND_DNA } from './modules/local/extend_fastq/main' addParams( options: [args: [suffix: dna_extension], args2: [gzip: true]] )
 
@@ -88,10 +96,14 @@ include { BAM2BED as BAM2BED_RNA1 } from './modules/local/bam2bed/main' addParam
 include { BAM2BED as BAM2BED_RNA2 } from './modules/local/bam2bed/main' addParams( options: [filter: 'samtools view -h -F 4 -d XM:0 -d XM:1 -d XM:2', filter2: 'samtools view -h -d NH:1 -', suffix: '.rna2'])
 include { BAM2BED as BAM2BED_DNA  } from './modules/local/bam2bed/main' addParams( options: [filter: 'samtools view -h -F 4 -d XM:0 -d XM:1 -d XM:2', filter2: 'samtools view -h -d NH:1 -', suffix: '.dna'])
 
-include { BED_ANNOTATE_RESTRICTION as BED_ANNOTATE_RESTRICTION_RNA1 } from './modules/local/bed_annotate_restriction'  addParams( options: [args: [:], suffix:'.rna1'] )
-include { BED_ANNOTATE_RESTRICTION as BED_ANNOTATE_RESTRICTION_RNA2 } from './modules/local/bed_annotate_restriction'  addParams( options: [args: [:], suffix:'.rna2'] )
+include { RNADNATOOLS_SEGMENT_GETCLOSEST as BED_ANNOTATE_RESTRICTION_RNA1 } from './modules/rnadnatools/segment_getclosest/main'  addParams( options: [args: [:], suffix:'.rna1'] )
+include { RNADNATOOLS_SEGMENT_GETCLOSEST as BED_ANNOTATE_RESTRICTION_RNA2 } from './modules/rnadnatools/segment_getclosest/main'  addParams( options: [args: [:], suffix:'.rna2'] )
 
-include { PARQUET_EVALUATE as TABLE_EVALUATE_FILTERS } from './modules/local/evaluate-tools/main'  addParams( options: [args: [format:'bool'], suffix:'.filters'] )
+include { RNADNATOOLS_TABLE_EVALUATE as TABLE_EVALUATE_FILTERS } from './modules/rnadnatools/table_evaluate/main'  addParams( options: [args: [
+                                                             format:'bool',
+                                                             input_format: 'parquet',
+                                                             output_format: 'parquet'
+                                                             ], suffix:'.filters'] )
 
 //include { COOLER_MAKE  } from './modules/local/cooler_make/main' addParams( options: [assembly: Assembly, resolution: params.get("cooler_resolution", 1000000)])
 
@@ -109,9 +121,8 @@ workflow REDC {
 //    // fastqc quality of the sequencing
 //    FASTQC(Fastq)
 
-    // deduplication of input sequences
-    FASTQ_CROP(Fastq)
-    Nodup = FASTQ_CROP.out.fastq | TABLE_FASTUNIQ
+//    // deduplication of input sequences
+//    TABLE_DEDUP(Fastq)
 
     // split input into chunks if chunksize was passed
     FastqChunks = chunksize ? INPUT_SPLIT(Fastq) : Fastq
@@ -144,11 +155,13 @@ workflow REDC {
     SpliceSites = GENOME_PREPARE_RNA_ANNOTATIONS.out.genome_splicesites
 
     /* Start of the reads processing */
-    TableChunks = FASTQ_TABLE_CONVERT(FastqChunks).table
+    TableChunks = TABLE_FASTQ2TSV(FastqChunks).table
 
     /* Trim reads by quality */
-    TrimmedChunks = FASTQ_TRIM(FastqChunks).fastq
-    TrimTable = TABLE_TRIM( join_2_channels(TableChunks, TrimmedChunks, 'id') ).table
+    TrimTable = TABLE_TRIM(FastqChunks, TableChunks).trimtable
+
+//    TrimmedChunks = FASTQ_TRIM(FastqChunks).fastq
+//    TrimTable = TABLE_TRIM( join_2_channels(TableChunks, TrimmedChunks, 'id') ).table
 
     /* Map and check oligos */
     Hits = OLIGOS_MAP(FastqChunks, TableChunks)
@@ -165,7 +178,7 @@ workflow REDC {
                            }
     ResultingTable = TABLE_MERGE( TablesGrouped ).output
 
-    ResultingParquetTable = TABLE_CONVERT( ResultingTable ).parquet
+    ResultingParquetTable = TABLE_CONVERT( ResultingTable ).table
 
     /* Read metadata about the fragments */
     def FragmentsColumns = [:] // todo: add necessary check here
