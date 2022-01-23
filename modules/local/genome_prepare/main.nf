@@ -21,7 +21,7 @@ process GENOME_PREPARE {
         mode: params.publish_dir_mode,
         saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:assembly, publish_by_meta:'') }
 
-    conda (params.enable_conda ? "bioconda::hisat2=2.2.0 bioconda::pyfaidx=0.5.9.5 bioconda::tabix=1.11" : null)
+    conda (params.enable_conda ? "bioconda::hisat2=2.2.1 bioconda::pyfaidx=0.5.9.5 bioconda::tabix=1.11" : null)
 
     input:
     val(assembly)
@@ -106,7 +106,7 @@ process GENOME_PREPARE {
         ${getChromsizesCmd}
         ${getIndexCmd}
 
-        echo 'hisat 2.2.0' > ${software}.version.txt
+        echo 'hisat 2.2.1' > ${software}.version.txt
         """
     }
 }

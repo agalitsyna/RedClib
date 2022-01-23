@@ -2,6 +2,7 @@
 include { initOptions; saveFiles; getSoftwareName } from './functions'
 
 params.options = [:]
+params.options.args.output_format = params.options.args.get('output_format', 'parquet')
 options        = initOptions(params.options)
 
 process RNADNATOOLS_SEGMENT_GETCLOSEST {
@@ -15,11 +16,11 @@ process RNADNATOOLS_SEGMENT_GETCLOSEST {
 
     input:
     tuple val(meta), path(bed)
-    tuple val(meta), path(table)
+    tuple val(meta_table), path(table)
     tuple val(meta_restr), path(restriction_sites)
 
     output:
-    tuple val(meta), path("*.${params.output_format}"), emit: output
+    tuple val(meta), path("*.${options.args.output_format}"), emit: table
     path  "*.version.txt"         , emit: version
 
     script:
@@ -43,9 +44,9 @@ process RNADNATOOLS_SEGMENT_GETCLOSEST {
 
     """
     rnadnatools segment get-closest-sites \
-        -o ${prefix}.${renz_key}${renz_strand}.distances.pq \
+        -o ${prefix}.${renz_key}${renz_strand}.distances.${options.args.output_format} \
         --strand ${renz_strand_sub} \
-        --out-format parquet \
+        --out-format ${options.args.output_format} \
         --columns ${header} \
         --align-ids parquet::${table}::readID \
         ${bed} ${restriction_sites}

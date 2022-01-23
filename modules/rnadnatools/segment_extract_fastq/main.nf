@@ -18,7 +18,7 @@ process RNADNATOOLS_SEGMENT_EXTRACT_FASTQ {
     tuple val(meta), path(inputs)
 
     output:
-    tuple val(meta), path("*.fq.gz"), path(inputs), emit: output
+    tuple val(meta), path("*.fq.gz"), emit: fastq
     path  "*.version.txt"         , emit: version
 
     script:
@@ -32,8 +32,8 @@ process RNADNATOOLS_SEGMENT_EXTRACT_FASTQ {
     """
     rnadnatools segment extract-fastq -i ${options.args.input_format} \
                                       -s "${selection_criteria}" \
-                                      --key-start ${fragment_name}_start \
-                                      --key-end ${fragment_name}_end \
+                                      --key-start read_${fragment_name}_start \
+                                      --key-end read_${fragment_name}_end \
                                       --key-readid readID \
                                       --key-seq R${side} \
                                       --key-qual Q${side} \

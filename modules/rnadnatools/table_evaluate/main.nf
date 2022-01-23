@@ -20,7 +20,7 @@ process RNADNATOOLS_TABLE_EVALUATE {
     val(filters)
 
     output:
-    tuple val(meta), path(input), path("*.${options.args.output_format}"), emit: output
+    tuple val(meta), path("*.${options.args.output_format}"), emit: table
     path  "*.version.txt"         , emit: version
 
     script:
@@ -30,7 +30,7 @@ process RNADNATOOLS_TABLE_EVALUATE {
     def format = options.args.format
     def cmd_create_evaluation_scheme = "printf '' > evaluation_schema.txt\n"
     for (filter in filters.keySet()) {
-        cmd_create_evaluation_scheme += "printf \"${filter}\\t${format}\\t${filters[filter]}\\n\" >> evaluation_schema.txt\n"
+        cmd_create_evaluation_scheme += "printf \'${filter}\\t${format}\\t${filters[filter]}\\n\' >> evaluation_schema.txt\n"
     }
 
     def inputs = ""

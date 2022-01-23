@@ -25,7 +25,7 @@ process TSV_MERGE {
     val(suffixes) // channel: [suffix1, suffix2, suffix3, ...]
 
     output:
-    tuple val(meta), path("*.tsv"), emit: output
+    tuple val(meta), path("*.tsv"), emit: table
     path  "*.version.txt"         , emit: version
 
     script:

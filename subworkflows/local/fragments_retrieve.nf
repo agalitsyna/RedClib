@@ -16,6 +16,7 @@ workflow FRAGMENTS_RETRIEVE {
     main:
 
         /* Check complementary RNA ends: */
+        // TODO: deprecate join_4_channels
         hits_complementary = OLIGOS_CHECK_COMPLEMENTARY( join_4_channels(
                                 TableChunks,
                                 IndexedLibrary.bin_reads,
@@ -31,17 +32,7 @@ workflow FRAGMENTS_RETRIEVE {
 
 }
 
-def join_2_channels(channel_l, channel_r, k){
-    // Take two channels and a meta key and return two channels combined by that key:
-    channel_l
-        .map{ it -> [it[0][k], it] }
-        .combine(channel_r.map{ it -> [it[0][k], it] }, by: 0)
-        .multiMap { key, left, right ->
-                    left: left
-                    right: right
-         }
-}
-
+// TODO: deprecate
 def join_4_channels(channel_1, channel_2, channel_3, channel_4, k){
     // Take 4 channels and a meta key and return 4 channels combined by that key:
     channel_1

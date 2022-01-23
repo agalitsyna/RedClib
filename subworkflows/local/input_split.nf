@@ -8,49 +8,51 @@ def chunksize = params.options.get('chunksize', 100000000000)*4
 
 include { FASTQ_SPLIT } from '../../modules/local/fastq_split/main' addParams( options: [args: [chunksize : chunksize]], outdir: "${params.outdir}" )
 
-/* Useful Groovy method */
-// Parse forward (left) and reverse (right) pieces of the file,
-// assert that they correspond each other and return index
-String parseChunkPair(left_file, right_file) {
-    chunk_left_idx  =  left_file.toString().tokenize('.')[-3]
-    chunk_right_idx = right_file.toString().tokenize('.')[-3]
-    chunk_left_side  =  left_file.toString().tokenize('.')[-2]
-    chunk_right_side = right_file.toString().tokenize('.')[-2]
-    assert chunk_left_idx == chunk_right_idx
-    assert chunk_left_side != chunk_right_side
-    return chunk_left_idx
-}
-String parseChunkSingle(file) {
-    chunk_idx  =  file.toString().tokenize('.')[-3]
-    return chunk_idx
-}
-
 workflow INPUT_SPLIT {
     take:
         fastq
 
     main:
 
-        FASTQ_SPLIT (
+        chunks = FASTQ_SPLIT (
             fastq
-        )
+        ).fastq
 
-        FASTQ_SPLIT.out.fastqs.transpose()
+        fastq_chunks = chunks.transpose()
             .map{ update_meta(it) }
-            .set { output }
 
     emit:
-    output // channel: [ val(meta_updated), [ reads ] ]
+    fastq_chunks // channel: [ val(meta_updated), [ reads ] ]
 }
 
+/* Useful Groovy methods */
+
+// Parse forward (left) and reverse (right) pieces of the file,
+// assert that they correspond each other and return index
+String parseChunkPair(left_file, right_file) {
+    def chunk_left_idx  =  left_file.toString().tokenize('.')[-3]
+    def chunk_right_idx = right_file.toString().tokenize('.')[-3]
+    def chunk_left_side  =  left_file.toString().tokenize('.')[-2]
+    def chunk_right_side = right_file.toString().tokenize('.')[-2]
+    assert chunk_left_idx == chunk_right_idx
+    assert chunk_left_side != chunk_right_side
+    return chunk_left_idx
+}
+String parseChunkSingle(file) {
+    def chunk_idx  =  file.toString().tokenize('.')[-3]
+    return chunk_idx
+}
+
+// Update metadata:
 def update_meta( it ) {
     def meta = [:]
-    keys = it[0].keySet() as String[]
-    for( key in keys ) {
+    def keys = it[0].keySet() as String[]
+    for( def key in keys ) {
         meta[key] = it[0][key]
     }
     def file1 = it[1]
     def file2 = ""
+    def chunk_index = ""
 
     if (meta.single_end) {
         chunk_index = parseChunkSingle(file1)
@@ -63,7 +65,8 @@ def update_meta( it ) {
     meta.id          = meta.id + "_" + chunk_index
     meta.chunk       = chunk_index
 
-   if (meta.single_end) {
+    def array = []
+    if (meta.single_end) {
         array = [ meta, [ file(file1) ] ]
     } else {
         array = [ meta, [ file(file1), file(file2) ] ]

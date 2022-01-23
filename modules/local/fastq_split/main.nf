@@ -4,6 +4,8 @@ include { initOptions; saveFiles; getSoftwareName } from './functions'
 params.options = [:]
 options        = initOptions(params.options)
 
+VERSION = '0.0'
+
 /* Useful Groovy methods */
 // Return True if the file is gzipped
 Boolean isGZ(line) {
@@ -24,7 +26,7 @@ process FASTQ_SPLIT {
     tuple val(meta), path(reads)
 
     output:
-    tuple val(meta), path("*.1.fq"), path("*.2.fq"), emit: fastqs
+    tuple val(meta), path("*.1.fq"), path("*.2.fq"), emit: fastq
     path  "*.version.txt"                                , emit: version
 
     script:
@@ -42,6 +44,6 @@ process FASTQ_SPLIT {
     }
     """
     ${Cmd}
-    echo '' > ${software}.version.txt
+    echo 'fastq_split ${VERSION}' > ${software}.version.txt
     """
 }

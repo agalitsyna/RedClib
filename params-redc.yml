@@ -1,20 +1,20 @@
 filters:
   # Restriction filters:
   rna2_mme_failed: # <- filter name
-          - '(rna2_strand=="+") & (rna2_start_mmep_left<=-26) & (rna2_start_mmep_left>=-27)'
-          - '(rna2_strand=="+") & (rna2_start_mmen_right<=19) & (rna2_start_mmen_right>=-18)'
-          - '(rna2_strand=="-") & (rna2_end_mmep_left<=-25) & (rna2_end_mmep_left>=-26)'
-          - '(rna2_strand=="-") & (rna2_end_mmen_right<=21) & (rna2_end_mmen_right>=20)'
+          - '(rna2_strand=="+") & (rna2_start_MmeIp_left<=-26) & (rna2_start_MmeIp_left>=-27)'
+          - '(rna2_strand=="+") & (rna2_start_MmeIn_right<=19) & (rna2_start_MmeIn_right>=-18)'
+          - '(rna2_strand=="-") & (rna2_end_MmeIp_left<=-25) & (rna2_end_MmeIp_left>=-26)'
+          - '(rna2_strand=="-") & (rna2_end_MmeIn_right<=21) & (rna2_end_MmeIn_right>=20)'
   rna2_nla_failed:
-          - '(rna2_strand=="+") & (rna2_start_nla_left>=-5) & (rna2_start_nla_left<=0)'
-          - '(rna2_strand=="+") & (rna2_start_nla_right>=0) & (rna2_start_nla_right<=1)'
-          - '(rna2_strand=="-") & (rna2_end_nla_left>=-5) & (rna2_end_nla_left<=0)'
-          - '(rna2_strand=="-") & (rna2_end_nla_right>=0) & (rna2_end_nla_right<=1)'
+          - '(rna2_strand=="+") & (rna2_start_NlaIII_left>=-5) & (rna2_start_NlaIII_left<=0)'
+          - '(rna2_strand=="+") & (rna2_start_NlaIII_right>=0) & (rna2_start_NlaIII_right<=1)'
+          - '(rna2_strand=="-") & (rna2_end_NlaIII_left>=-5) & (rna2_end_NlaIII_left<=0)'
+          - '(rna2_strand=="-") & (rna2_end_NlaIII_right>=0) & (rna2_end_NlaIII_right<=1)'
   rna1_nla_failed:
-          - '(rna1_strand=="+") & (rna1_start_nla_left>=-5) & (rna1_start_nla_left<=0)'
-          - '(rna1_strand=="+") & (rna1_start_nla_right>=0) & (rna1_start_nla_right<=1)'
-          - '(rna1_strand=="-") & (rna1_end_nla_left>=-5) & (rna1_end_nla_left<=0)'
-          - '(rna1_strand=="-") & (rna1_end_nla_right>=0) & (rna1_end_nla_right<=1)'
+          - '(rna1_strand=="+") & (rna1_start_NlaIII_left>=-5) & (rna1_start_NlaIII_left<=0)'
+          - '(rna1_strand=="+") & (rna1_start_NlaIII_right>=0) & (rna1_start_NlaIII_right<=1)'
+          - '(rna1_strand=="-") & (rna1_end_NlaIII_left>=-5) & (rna1_end_NlaIII_left<=0)'
+          - '(rna1_strand=="-") & (rna1_end_NlaIII_right>=0) & (rna1_end_NlaIII_right<=1)'
 
   # Pattern for filtering the relevant chromosomes:
   ###canonical_chromosomes: "chr[0-9,X,Y]|chr[0-9][0-9]"
@@ -38,7 +38,7 @@ filters:
   # Filter 6a: Trimmed segments are > 14 bp
   F6a_passedTrimming_strict: "(dna_R1_len_trim_adjusted>=18)&(dna_R1_len_trim_adjusted<=20)&(rna1_R1_len_trim_adjusted>=14)&(rna2_R2_len_trim_adjusted>=14)"
   # Filter 7: All three segments are uniquely mapped to chromosomes
-  F7_uniqueCanonical: "dna_is_not_multi & rna1_is_not_multi & rna2_is_not_multi & dna_is_mapped & rna1_is_mapped & rna2_is_mapped & dna_chr_canonical & rna1_chr_canonical & rna2_chr_canonical"
+  F7_uniqueCanonical: "dna_is_not_multi & rna1_is_not_multi & rna2_is_not_multi & dna_is_mapped & rna1_is_mapped & rna2_is_mapped" #& dna_chr_canonical & rna1_chr_canonical & rna2_chr_canonical"
   F7a_RNAsameChr: "rna1_chr==rna2_chr"
   F7b_RNAoppositeStrands: "rna1_strand!=rna2_strand"
   # Filter 8a: Same pos of DNA and RNA

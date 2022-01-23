@@ -12,6 +12,9 @@ input:
       description: |
           Groovy Map containing sample information
           e.g. [ id:'test', single_end:false ]
+  - reads:
+      type: file
+      description: fastq file with reads
 
 output:
   - meta:
@@ -19,6 +22,9 @@ output:
       description: |
           Groovy Map containing sample information
           e.g. [ id:'test', single_end:false ]
+  - table:
+      type: tsv file
+      description: output table where each row corresponds to single read
   - version:
       type: file
       description: File containing software version

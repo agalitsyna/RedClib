@@ -30,7 +30,7 @@ process TABLE_TRIM {
 
     """
     # Truncated read -> reads length:
-    paste <(sed -n '1~4p' ${input_fq1} | awk '{print \$1}') \\
+    paste <(sed -n '1~4p' ${input_fq1} | awk '{print substr(\$1, 2);}') \\
           <(sed -n '2~4p' ${input_fq1} | awk '{print length(\$0);}') \\
           <(sed -n '2~4p' ${input_fq2} | awk '{print length(\$0);}') \\
           > ${prefix}.trim.info

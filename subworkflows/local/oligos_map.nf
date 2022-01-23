@@ -45,11 +45,13 @@ workflow OLIGOS_MAP {
         HitsOligosStream = OLIGOS_ALIGN(IndexedLibrary).aligned
 
         /* Check presence of GA dinucleotide in the bridge: */
+        // TODO: optimize with cross
         HitsSmallOligos = OLIGOS_CHECK_GA(
                             join_2_channels(TableChunks, HitsOligosStream.filter { it[0].oligo=='bridge_forward' && it[0].side==1 }, 'id')
                             ).hits
 
         /* Check complementary RNA ends: */
+        // TODO: optimize with cross
         HitsComplementary = OLIGOS_CHECK_COMPLEMENTARY( join_4_channels(
                                 TableChunks,
                                 IndexedFastqs,
@@ -66,7 +68,7 @@ workflow OLIGOS_MAP {
                                 suffixes: suffixes
                            }
 
-        HitsOligos = TABLE_MERGE_OLIGOS( HitsOligosGrouped ).output
+        HitsOligos = TABLE_MERGE_OLIGOS( HitsOligosGrouped ).table
 
     emit:
     HitsOligos // channel: [ val(meta), [ output_table ] ]
@@ -74,6 +76,7 @@ workflow OLIGOS_MAP {
     HitsComplementary // channel: [ val(meta), [ output_table ] ]
 }
 
+// TODO: deprecate
 def join_2_channels(channel_l, channel_r, k){
     // Take two channels and a meta key and return two channels combined by that key:
     channel_l
@@ -85,6 +88,7 @@ def join_2_channels(channel_l, channel_r, k){
          }
 }
 
+// TODO: deprecate
 def join_4_channels(channel_1, channel_2, channel_3, channel_4, k){
     // Take 4 channels and a meta key and return 4 channels combined by that key:
     channel_1

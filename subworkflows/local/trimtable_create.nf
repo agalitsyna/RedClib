@@ -17,12 +17,14 @@ workflow TRIMTABLE_CREATE {
     main:
         // Deduplication of input sequences:
         Trimmed = FASTQ_TRIM(Fastq).fastq
+        // TODO: deprecate join_2_channels
         trimtable = TABLE_TRIM( join_2_channels(Table, Trimmed, 'id') ).table
 
     emit:
         trimtable // channel: [ val(meta), [ nudup_readids ] ]
 }
 
+// TODO: deprecate
 def join_2_channels(channel_l, channel_r, k){
     // Take two channels and a meta key and return two channels combined by that key:
     channel_l

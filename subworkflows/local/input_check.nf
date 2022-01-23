@@ -23,24 +23,23 @@ workflow INPUT_CHECK_DOWNLOAD {
             .splitCsv ( header:true, sep:',' )
             .map { format_fastq_channels(it) }
             .branch {
-                meta, fastq ->
-                    for_download  : isSRA(fastq.flatten()[0])
-                        return [ meta, fastq.flatten() ]
-                    ready : !isSRA(fastq.flatten()[0])
-                        return [ meta, fastq.flatten() ]
+                meta, fastq_path ->
+                    for_download  : isSRA(fastq_path.flatten()[0])
+                        return [ meta, fastq_path.flatten() ]
+                    ready : !isSRA(fastq_path.flatten()[0])
+                        return [ meta, fastq_path.flatten() ]
             }
 
-        FASTQDOWNLOAD(
+        fastq_downloaded = FASTQDOWNLOAD(
                 reads.for_download
-            )
+            ).fastq
 
-        FASTQDOWNLOAD.out.fastq
+        fastq = fastq_downloaded
             .mix(reads.ready)
             .map { create_fastq_channels(it) }
-            .set { output }
 
     emit:
-    output // channel: [ val(meta), [ reads ] ]
+        fastq // channel: [ val(meta), [ reads ] ]
 }
 
 // Function to get list of [ meta, [ fastq_1, fastq_2 ] ]
@@ -64,6 +63,7 @@ def create_fastq_channels( it ) {
     def meta = it[0]
     def files = it[1]
 
+    def array = []
     if (!file(files[0]).exists()) {
         exit 1, "ERROR: Please check input samplesheet -> Read 1 FastQ file does not exist!\n${files[0]}"
     }
