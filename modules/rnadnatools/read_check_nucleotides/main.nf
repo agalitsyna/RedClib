@@ -15,7 +15,9 @@ process RNADNATOOLS_READ_CHECK_NUCLEOTIDES {
 
     input:
     tuple val(meta), path(table)
-    tuple val(meta_oligos), path(aligned)
+    val(meta_short_oligo)
+    tuple val(meta_ref), path(ref)
+
 
     output:
     tuple val(meta), path("*.tsv"), emit: hits
@@ -26,11 +28,10 @@ process RNADNATOOLS_READ_CHECK_NUCLEOTIDES {
     def prefix   = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
 
     """
-    rnadnatools read check-nucleotides --oligo ${options.args.oligo} \
-        -o ${prefix}.${meta_oligos.oligo}.${meta_oligos.id}.${options.args.oligo}.tsv \
-        --readid-colname readID --seq-colname R1 \
-        --position-colname start_hit --shift 35 \
-        ${table} ${aligned}
+    rnadnatools read check-nucleotides --oligo ${meta_short_oligo.sequence} \
+        --readid-colname readID --seq-colname R${meta_short_oligo.side} \
+        --ref-column ${meta_short_oligo.reference_column} --shift ${meta_short_oligo.position} \
+        ${table} ${ref} ${prefix}.${meta_short_oligo.id}.tsv
 
     python -c "import rnadnatools; print('rnadnatools', rnadnatools.__version__)" > ${software}.version.txt
     """

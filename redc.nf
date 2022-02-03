@@ -41,9 +41,10 @@ if (params.genome.genes_gtf) { GenesGtf = params.genome.genes_gtf }
     else { exit 1, 'Genome RNA annotation GTF is not specified!' }
 
 // Check optional parameters
-def chunksize = params.get('chunksize', 0)
-def check_restriction = params.get('check_restriction', false)
-def RenzymesPreloaded = Genome.get('restricted', {})
+def protocol = params.get('protocol', [:])
+def chunksize = protocol.get('chunksize', 1000000000000)
+def check_restriction = protocol.get('check_restriction', false)
+def RenzymesPreloaded = Genome.get('restricted', [:])
 
 // Include modules and subworkflows
 include { INPUT_CHECK_DOWNLOAD } from './subworkflows/local/input_check' addParams( options: [:] )
@@ -63,7 +64,7 @@ include { GENOME_PREPARE_RNA_ANNOTATIONS } from './modules/local/genome_prepare_
                                                             rna_annotation_suffix: Genome.get('rna_annotation_suffix', '')
                                                             ]])
 
-//include { FASTQC } from './modules/nf-core/software/fastqc/main' addParams( options: [:] )
+include { FASTQC } from './modules/nf-core/software/fastqc/main' addParams( options: [:] )
 include { FASTQ2TSV as TABLE_FASTQ2TSV } from './modules/local/fastq2table/main' addParams( options: [:] )
 
 include { DEDUP_FASTUNIQ as TABLE_DEDUP } from './subworkflows/local/dedup_fastuniq' addParams( options: [:] )
@@ -121,6 +122,7 @@ include { BAM2BED as BAM2BED_DNA  } from './modules/local/bam2bed/main' addParam
                                                              filter2: 'samtools view -h -d NH:1 -',
                                                              suffix: '.dna'])
 
+
 include { RNADNATOOLS_SEGMENT_GETCLOSEST as BED_ANNOTATE_RESTRICTION_RNA1 } from './modules/rnadnatools/segment_getclosest/main'  addParams( options: [
                                                              args: [:],
                                                              suffix:'.rna1'] )
@@ -135,6 +137,49 @@ include { RNADNATOOLS_TABLE_EVALUATE as TABLE_EVALUATE_FILTERS } from './modules
                                                              output_format: 'parquet'
                                                              ], suffix:'.filters'] )
 
+include { RNADNATOOLS_TABLE_ALIGN as TABLE_BED_RNA1 } from './modules/rnadnatools/table_align/main'  addParams( options: [
+                                                            args: [
+                                                             input_format: 'tsv',
+                                                             ref_format: 'parquet',
+                                                             output_format: 'parquet',
+                                                             params: '--no-input-header --fill-values .,-1,-1,.,0,.,. \
+                                                             --new-colnames chrom_rna1,start_rna1,end_rna1,readID,mapq_rna1,strand_rna1,cigar_rna1 \
+                                                             --key-column 3 --ref-colname readID'
+                                                            ], suffix:'.bed-rna1'] )
+include { RNADNATOOLS_TABLE_ALIGN as TABLE_BED_RNA2 } from './modules/rnadnatools/table_align/main'  addParams( options: [
+                                                            args: [
+                                                             input_format: 'tsv',
+                                                             ref_format: 'parquet',
+                                                             output_format: 'parquet',
+                                                             params: '--no-input-header --fill-values .,-1,-1,.,0,.,. \
+                                                             --new-colnames chrom_rna2,start_rna2,end_rna2,readID,mapq_rna2,strand_rna2,cigar_rna2 \
+                                                             --key-column 3 --ref-colname readID'
+                                                            ], suffix:'.bed-rna2'] )
+include { RNADNATOOLS_TABLE_ALIGN as TABLE_BED_DNA } from './modules/rnadnatools/table_align/main'  addParams( options: [
+                                                            args: [
+                                                             input_format: 'tsv',
+                                                             ref_format: 'parquet',
+                                                             output_format: 'parquet',
+                                                             params: '--no-input-header --fill-values .,-1,-1,.,0,.,. \
+                                                             --new-colnames chrom_dna,start_dna,end_dna,readID,mapq_dna,strand_dna,cigar_dna \
+                                                             --key-column 3 --ref-colname readID'
+                                                            ], suffix:'.bed-dna'] )
+
+include { RNADNATOOLS_TABLE_ALIGN as TABLE_DEDUP_ALIGN } from './modules/rnadnatools/table_align/main'  addParams( options: [
+                                                            args: [
+                                                             input_format: 'tsv',
+                                                             ref_format: 'parquet',
+                                                             output_format: 'parquet',
+                                                             params: '--no-input-header --key-column 0 --ref-colname readID \
+                                                             --fill-values ".",0 --drop-key --new-colnames readID,isUnique'
+                                                            ], suffix:'.fastuniq'] )
+
+include { RNADNATOOLS_TABLE_STACK as RESULTS_STACK } from './modules/rnadnatools/table_stack/main' addParams( options: [
+                                                             args: [
+                                                             input_format: 'parquet',
+                                                             output_format: 'parquet'
+                                                             ]])
+
 //include { COOLER_MAKE  } from './modules/local/cooler_make/main' addParams( options: [assembly: Assembly, resolution: params.get("cooler_resolution", 1000000)])
 
 
@@ -143,85 +188,84 @@ workflow REDC {
 
     /* Prepare input */
     // Check input FASTQ files
-    Fastq = INPUT_CHECK_DOWNLOAD(InputSamplesheet)
-        .map {meta, fastq ->
-                meta.id = meta.id.split('_')[0..-2].join('_')
-                [ meta, fastq ] }
+    Fastq = INPUT_CHECK_DOWNLOAD( InputSamplesheet )
 
+    /* Check quality with FASTQC */
+    FASTQC( Fastq )
 
-//    // fastqc quality of the sequencing
-//    FASTQC(Fastq)
-
-//    // deduplication of input sequences
-//    TABLE_DEDUP(Fastq)
-
-    // split input into chunks if chunksize was passed
+    /* Split into chunks */
     if (chunksize) {
-        FastqChunks = INPUT_SPLIT(Fastq)
+        FastqChunks = INPUT_SPLIT( Fastq ) /* Subworkflow that takes fastq stream and outputs chunks */
     }
     else {
         FastqChunks = Fastq
     }
 
-//test-download1_T1,sra:SRR10010324:start=0&end=10000,,125,false
-//test-download2_T2,sra:SRR10010324:start=0&end=1000,,125,false
-
     /* Prepare genome and annotations */
-    // Prepare genome (index, chromosome sizes and fasta)
-    GENOME_PREPARE(Assembly)
-    Hisat2Index = GENOME_PREPARE.out.genome_index
-    GenomeFasta = GENOME_PREPARE.out.genome_fasta
+
+    // Index, chromosome sizes and fasta:
+    GenomeComplete = GENOME_PREPARE( Assembly )
+    Hisat2Index = GenomeComplete.genome_index
+    GenomeFasta = GenomeComplete.genome_fasta
 
     // Restrict the genome or load pre-computed restriction sites
     if (check_restriction) {
-        Renzymes = Channel
-            .fromList(params.protocol.renzymes)
-            .branch { it ->
-                    forRestriction : !RenzymesPreloaded.containsKey(it) // Restrict only missing renzymes
-                        return [renzyme: it, assembly: Assembly]
-                    loaded : RenzymesPreloaded.containsKey(it) // Load files if restriction is pre-computed
-                        return [[renzyme: it, assembly: Assembly], file(RenzymesPreloaded[it])]
-                    }
-        GENOME_RESTRICT(
-            Renzymes.forRestriction,
-            GenomeFasta
-        )
-        Restricted = GENOME_RESTRICT.out.genome_restricted.mix( Renzymes.loaded ) // Concatenate two outputs
+        Renzymes = Channel.fromList(params.protocol.renzymes)
+                            .branch { it ->
+                                    forRestriction : !RenzymesPreloaded.containsKey(it) // Restrict only missing renzymes
+                                        return [renzyme: it, assembly: Assembly]
+                                    loaded : RenzymesPreloaded.containsKey(it) // Load files if restriction is pre-computed
+                                        return [[renzyme: it, assembly: Assembly], file(RenzymesPreloaded[it])]
+                                    }
+
+        Restricted = GENOME_RESTRICT(Renzymes.forRestriction, GenomeFasta).genome_restricted.mix( Renzymes.loaded )
+        // Create separate channels for future searchs:
         RestrictedPlus = Restricted.map{ update_meta(it, [renz_strand: "+"] ) }
         RestrictedMinus = Restricted.map{ update_meta(it, [renz_strand: "-"] ) }
-        RestrictedExtended = RestrictedPlus.mix( RestrictedMinus ).map{ it -> [it] }
+        RestrictedBoth = Restricted.map{ update_meta(it, [renz_strand: "b"] ) }
+        RestrictedChannel = RestrictedPlus.mix(RestrictedMinus).mix(RestrictedBoth).map{ it -> [it] }
     }
 
-    // Get the splice sites by hisat2 script
-    GENOME_PREPARE_RNA_ANNOTATIONS(Assembly)
-    SpliceSites = GENOME_PREPARE_RNA_ANNOTATIONS.out.genome_splicesites
+    // Get the splice sites by hisat2 script:
+    SpliceSites = GENOME_PREPARE_RNA_ANNOTATIONS( Assembly ).genome_splicesites
 
-    /* Start of the reads processing */
-    TableChunks = TABLE_FASTQ2TSV(FastqChunks).table
+    /* Convert input reads to text table */
+    TableChunks = TABLE_FASTQ2TSV( FastqChunks ).table
 
     /* Trim reads by quality */
-    TrimTable = TABLE_TRIM(FastqChunks, TableChunks).trimtable
+    TrimTable = TABLE_TRIM( FastqChunks, TableChunks ).trimtable
 
     /* Map and check oligos */
-    Hits = OLIGOS_MAP(FastqChunks, TableChunks)
+    Hits = OLIGOS_MAP( FastqChunks, TableChunks ) /* Subworkflow for oligos mapping */
 
-    /* Table with read, trimming and oligos mapping data: */
-    // Create synchronized multichannel with tables (each table emitted separately):
-    TablesGrouped_mult = TableChunks.combine( TrimTable, by:0 ).map{it -> [it[0], it[1..-1]]}
-        .cross(Hits.HitsOligos) { it -> it[0].id }.map { it -> [it[0][0], [*it[0][1], it[1][1]] ]}
-        .cross(Hits.HitsSmallOligos) { it -> it[0].id }.map { it -> [it[0][0], [*it[0][1], it[1][1]] ]}
-        .cross(Hits.HitsComplementary) { it -> it[0].id }.map { it -> [it[0][0], [*it[0][1], it[1][1]] ]}
-         .multiMap{it ->
-                dataset: it // Channel structure: [meta, [paths]]
-                suffixes: ['', '', '', '', ''] // No suffixes
-            }
-    MergedTable = TABLE_MERGE( TablesGrouped_mult ).table
+    /* Tables with read, trimming and mapped oligo: */
+    // Create synchronized multichannel with tables:
+    InputTablesGrouped = TableChunks.mix(TrimTable)
+                                    .mix(Hits.HitsOligos)
+                                    .mix(Hits.HitsShortOligos)
+                                    .mix(Hits.HitsComplementary)
+                                    .map{ removeKeys(it, ['oligo', 'side', 'idx'] ) }
+                                    .groupTuple(by:0)
+                                    .combine(Channel.from(['']))
+                                    .multiMap{it ->
+                                        table: [it[0], it[1]]
+                                        suffixes: it[2]
+                                    }
+
+    MergedTable = TABLE_MERGE( InputTablesGrouped ).table
     Table = TABLE_CONVERT( MergedTable ).table
 
-    /* Table with fragments data.
-      Information about the RNA/DNA fragments will be stored in columns of table
-      Columns are evaluated based on input expressions */
-    def FragmentColumns = [:] // todo: add necessary check here
+    /* Deduplicate input sequences */
+    FastuniqOut = TABLE_DEDUP( Fastq )
+    TableDedup = TABLE_DEDUP_ALIGN( Table.combine(FastuniqOut)
+                .filter{ it[0].original_id==it[2].id }
+                .multiMap{ it ->
+                    reference: [ it[0], it[3] ]
+                    table: [ it[0], it[1] ]
+                } ).table
+
+    /* Create table with information about fragments. */
+    def FragmentColumns = [:]
     for (fragment_name in params.fragments.keySet()){ // select all fragments
         fragment_params = params.fragments[fragment_name] // take the parameters for each fragment
         for( col in fragment_params.new_columns.keySet() ) { // add new columns to the list
@@ -229,122 +273,139 @@ workflow REDC {
         }
     }
     FragmentFilters = Channel.from(FragmentColumns)
-    // Create multichannel with fragment filters:
+    // Create multichannel by combining with filters:
     TableFragments_mult = Table.combine( FragmentFilters )
-                      .multiMap { meta, id, filt ->
-                          pq: [meta, id]
-                          filters: filt
-                          }
+                        .multiMap { meta, id, filt ->
+                            table: [meta, id]
+                            filters: filt
+                        }
     TableFragments = TABLE_EVALUATE_FRAGMENTS( TableFragments_mult ).table
 
-    /* Extract fragments FASTQ */
+    /* Extract FASTQs with fragments */
     def FragmentData = params.fragments.collect {
             fragment, fragment_params -> [fragment: fragment, params:fragment_params]
             }
     FragmentFilterData = Channel.fromList(FragmentData)
-    FragmentsSelected = Table
-                        .combine(TableFragments, by:0)
+    FragmentsSelected = Table.combine( TableFragments, by:0 )
                         .combine( FragmentFilterData )
-                        .map { meta_pq, pq1, pq2, fragment ->
-                                        bin_reads: update_meta( [meta_pq, [pq1, pq2]],
-                                                                [fragment: fragment.fragment,
-                                                                 side: fragment.params.side,
-                                                                 single_end: true,
-                                                                 selection_criteria: fragment.params.selection_criteria] )
-                                   }
+                        .map { meta, table1, table2, fragment -> update_meta([meta, [table1, table2]],
+                                        [fragment: fragment.fragment, side: fragment.params.side,
+                                        single_end: true, selection_criteria: fragment.params.selection_criteria] ) }
 
-    FragmentsFastq = FRAGMENTS_TO_FASTQ( FragmentsSelected ).fastq
+    FragmentsFastqNoExtended = FRAGMENTS_TO_FASTQ( FragmentsSelected ).fastq.map{ update_meta( it, [extended:false] ) }
 
-    /* Define channels for Fastq files with fragments: */
-    FastqRNA1 = FragmentsFastq.filter{ it[0].fragment == 'rna1' }
-    FastqRNA2 = FragmentsFastq.filter{ it[0].fragment == 'rna2' }
-    if (dna_extension) {
-        FastqDNA = FASTQ_EXTEND_DNA (
-            FragmentsFastq.filter{ it[0].fragment == 'dna' }
-        ).fastq
-    } else {
-        FastqDNA = FragmentsFastq.filter{ it[0].fragment == 'dna' }
-    }
+    /* Extend fragments, if needed: */
 
-    /* Map the reads */
-    BamRNA1 = HISAT2_ALIGN_RNA1 (
-            FastqRNA1,
-            Hisat2Index,
-            SpliceSites
-    ).bam
+    FragmentFilterData.filter{it.params.get('extension_suffix', '')}.view()
 
-    BamRNA2 = HISAT2_ALIGN_RNA2 (
-            FastqRNA2,
-            Hisat2Index,
-            SpliceSites
-    ).bam
 
-    BamDNA = HISAT2_ALIGN_DNA (
-            FastqDNA,
-            Hisat2Index,
-            SpliceSites
-    ).bam
+//    /* Define channels for Fastq files with fragments: */
+//    FastqRNA1 = FragmentsFastq.filter{ it[0].fragment == 'rna1' }
+//    FastqRNA2 = FragmentsFastq.filter{ it[0].fragment == 'rna2' }
+//    if (dna_extension) {
+//        FastqDNA = FASTQ_EXTEND_DNA( FragmentsFastq.filter{ it[0].fragment == 'dna' } ).fastq
+//    } else {
+//        FastqDNA = FragmentsFastq.filter{ it[0].fragment == 'dna' }
+//    }
+//
+//    /* Map the fragments */
+//    BamRNA1 = HISAT2_ALIGN_RNA1 (
+//            FastqRNA1,
+//            Hisat2Index,
+//            SpliceSites
+//    ).bam
+//
+//    BamRNA2 = HISAT2_ALIGN_RNA2 (
+//            FastqRNA2,
+//            Hisat2Index,
+//            SpliceSites
+//    ).bam
+//
+//    BamDNA = HISAT2_ALIGN_DNA (
+//            FastqDNA,
+//            Hisat2Index,
+//            SpliceSites
+//    ).bam
+//
+//    /* Convert to BED */
+//    BedRNA1 = BAM2BED_RNA1( BamRNA1 ).bed
+//    BedRNA2 = BAM2BED_RNA2( BamRNA2 ).bed
+//    BedDNA  = BAM2BED_DNA( BamDNA ).bed
+//
+//    TableBedRNA1 = TABLE_BED_RNA1( BedRNA1.cross(Table){ it -> it[0].id }.multiMap{ it ->
+//        input: [ it[0], it[1] ]
+//        reference: [ it[2], it[3] ]
+//         } ).table
+//    TableBedRNA2 = TABLE_BED_RNA2( BedRNA2.cross(Table){ it -> it[0].id }.multiMap{ it ->
+//        input: [ it[0], it[1] ]
+//        reference: [ it[2], it[3] ]
+//         } ).table
+//    TableBedDNA = TABLE_BED_DNA( BedDNA.cross(Table){ it -> it[0].id }.view().multiMap{ it ->
+//        input: [ it[0], it[1] ]
+//        reference: [ it[2], it[3] ]
+//         } ).table
+//
+//    TableBed = TableBedRNA1.mix( TableBedRNA2 ).mix( TableBedDNA )
+//         .map{ removeKeys(it, ['fragment', 'side', 'selection_criteria', 'singe-end'] )}
+//         .groupTuple(by:0)
+//
+//    /* Annotate restriction recognition sites */
+//    TableRestrictionRNA1_mult = BedRNA1.cross(Table){ it -> it[0].id }
+//                .combine( RestrictedExtended )
+//                .multiMap{ it ->
+//                        bed: it[0]
+//                        table_input: it[1]
+//                        rsites: it[2] }
+//    TableRestrictionRNA1 = BED_ANNOTATE_RESTRICTION_RNA1( TableRestrictionRNA1_mult ).table
+//
+//    TableRestrictionRNA2_mult = BedRNA2.cross( Table ) { it -> it[0].id }
+//                .combine( RestrictedExtended )
+//                .multiMap{ it ->
+//                        bed: it[0]
+//                        table_input: it[1]
+//                        rsites: it[2] }
+//    TableRestrictionRNA2 = BED_ANNOTATE_RESTRICTION_RNA2( TableRestrictionRNA2_mult ).table
+//
+//    /* Collect final tables */
+//    TablesCombined = Table
+//        .mix(TableBedRNA1)
+//        .mix(TableBedRNA2)
+//        .mix(TableBedDNA)
+//        .mix(TableRestrictionRNA1)
+//        .mix(TableRestrictionRNA2)
+//        .mix(TableDedup)
+//        .mix(TableFragments)
+//        .map{ removeKeys(it, ['fragment', 'side', 'selection_criteria', 'single_end'] ) }.groupTuple(by:0)
+//
+//    /*  Collect final filters: */
+//    def FiltersColumns = [:] // todo: add necessary check here
+//    for (filter_name in params.filters.keySet()){
+//        def filter_params = params.filters[filter_name]
+//        if (filter_params instanceof List) {
+//            filter_params = "(" + filter_params.join(") | (") + ")"
+//        }
+//        FiltersColumns[filter_name] = filter_params
+//    }
+//
+//    /* Evaluate filters on collected tables: */
+//    TableFinalChunked = TABLE_EVALUATE_FILTERS( TablesCombined, Channel.from(FiltersColumns) ).table
+//
+//    /* Merge final tables between replicates and chunks: */
+//    TableFinalChunked.view() //.map{}.groupTuple(by:0, sort  { it1, it2 -> return it1[0].id==it2[0].id  })
+//
+//    // TableFinal = RESULTS_STACK( TableFinalChunked ).table
+//
+////    if (params.get('output', [:]).get('make_final_table', false)){
+////        TablesCollection = params.output.tables // collect // filter
+////        RESULTS_DUMP_TABLE(TableFilters, FinalColumns)
+////
+////        if (params.get('output', [:]).get('make_cooler', false)){
+////            ChromSizes = GenomeComplete.chromsizes
+////            COOLER_MAKE(TableFilters, ChromSizes)
+////        }
+////    }
 
-    /* Convert to BED */
-    BedRNA1 = BAM2BED_RNA1 ( BamRNA1 ).bed
-    BedRNA2 = BAM2BED_RNA2 ( BamRNA2 ).bed
-    BedDNA  = BAM2BED_DNA  ( BamDNA  ).bed
 
-    /* Annotate restriction recognition sites */
-    TableRestrictionRNA1_mult = BedRNA1.cross( Table ) { it -> it[0].id }
-                .combine( RestrictedExtended )
-                .multiMap{ it ->
-                        ch1: it[0]
-                        ch2: it[1]
-                        ch3: it[2] }
-    TableRestrictionRNA1 = BED_ANNOTATE_RESTRICTION_RNA1( TableRestrictionRNA1_mult ).table
-
-    TableRestrictionRNA2_mult = BedRNA2.cross( Table ) { it -> it[0].id }
-                .combine( RestrictedExtended )
-                .multiMap{ it ->
-                            ch1: it[0]
-                            ch2: it[1]
-                            ch3: it[2] }
-    TableRestrictionRNA2 = BED_ANNOTATE_RESTRICTION_RNA2( TableRestrictionRNA2_mult ).table
-
-    // Combined table of restriction:
-    // Channel strcuture: [meta, [tables]]
-    TableRestriction = TableRestrictionRNA1.groupTuple()
-        .cross( TableRestrictionRNA2.groupTuple() ){ it -> it[0].id }
-        .map{t1, t2 -> [t1[0], [*t1[1], *t2[1]]]}
-
-    // Collect final filters:
-    def FiltersColumns = [:] // todo: add necessary check here
-    for (filter_name in params.filters.keySet()){
-        def filter_params = params.filters[filter_name]
-        if (filter_params instanceof List) {
-            filter_params = "(" + filter_params.join(") | (") + ")"
-        }
-        FiltersColumns[filter_name] = filter_params
-    }
-    Filters = Channel.from(FiltersColumns)
-
-    TablesCombined = Table.combine(TableFragments, by:0)
-         .cross(TableRestriction){ it -> it[0].id }
-         .map{t1, t2 -> [t1[0], [*t1[1..-1], *t2[1]]]}
-
-//    // Evaluate filters on collected tables:
-//    // Multichannel with collected tables and filters:
-//    TableCombined_mult = TablesCombined
-//                            .combine( Filters.map{ it -> [it] } ).view()
-//                            .multiMap{ it ->
-//                                  pq: [it[0], it[1]]
-//                                  filters: it[2]
-//                            }
-//    TableFilters = TABLE_EVALUATE_FILTERS( TableCombined_mult ).table
-//    TableFilters.view()
-
-//    // TODO: add custom tables as output
-////    ChromSizes = GENOME_PREPARE.out.chromsizes
-////    COOLER_MAKE (
-////        FinalTable,
-////        ChromSizes
-////    )
 
 }
 
@@ -359,7 +420,7 @@ workflow.onComplete {
 
 def update_meta( it, hashMap ) {
     def meta = [:]
-    keys = it[0].keySet() as String[]
+    def keys = it[0].keySet() as String[]
     for( key in keys ) {
         meta[key] = it[0][key]
     }
@@ -374,5 +435,17 @@ def update_meta( it, hashMap ) {
     }
 
     array = [ meta, it[1] ]
+    return array
+}
+def removeKeys( it, ks ) {
+    def meta = [:]
+    def keys = it[0].keySet() as String[]
+    for( key in keys ) {
+        if (!(key in ks)) {
+            meta[key] = it[0][key]
+        }
+    }
+
+    def array = [ meta, it[1] ]
     return array
 }

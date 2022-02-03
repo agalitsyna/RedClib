@@ -1,5 +1,5 @@
-name: table_evaluate
-description: Evaluate expressions on a table
+name: table_stack
+description: Vertical stack of a tables
 keywords:
     - table
     - parquet

@@ -46,6 +46,7 @@ workflow INPUT_CHECK_DOWNLOAD {
 def format_fastq_channels(LinkedHashMap row) {
     def meta = [:]
     meta.id           = row.sample
+    meta.group        = row.group
     meta.single_end   = row.single_end.toBoolean()
     meta.rlen         = row.rlen
     //meta.strandedness = row.strandedness

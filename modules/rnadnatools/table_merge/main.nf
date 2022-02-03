@@ -17,7 +17,7 @@ process RNADNATOOLS_TABLE_MERGE {
 
     input:
     val(meta)
-    path(pqs)
+    path(input)
     val(suffixes)
 
     output:
@@ -32,10 +32,18 @@ process RNADNATOOLS_TABLE_MERGE {
     def chunksize = options.get('chunksize', 1_000_000)
     def filename = table.take(table.lastIndexOf('.'))
 
+    def inputs = ""
+    if (input instanceof List) {
+            inputs = input.join(" ")
+        }
+    else {
+        inputs = input
+    }
+
     """
     rnadnatools table merge -i ${options.args.input_format} \
         -o ${options.args.output_format} \
-        ${filename}.${options.args.output_format} ${table}
+        ${filename}.${options.args.output_format} ${inputs}
 
     python -c "import rnadnatools; print('rnadnatools', rnadnatools.__version__)" > ${software}.version.txt
     """

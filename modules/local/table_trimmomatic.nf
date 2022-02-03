@@ -35,8 +35,8 @@ process TABLE_TRIM {
           <(sed -n '2~4p' ${input_fq2} | awk '{print length(\$0);}') \\
           > ${prefix}.trim.info
 
-    # Reads might be in peculiar order, we want to guarantee each read has a line in file in appropriate order:
-    echo "#readID__trim\tpos_R1__trim\tpos_R2__trim" > ${prefix}.trimtable.tsv
+    # Reads might be disordered, we want to guarantee the same order as input:
+    echo "#readID_trim\ttrim_R1\ttrim_R2" > ${prefix}.trimtable.tsv
     awk 'NR==FNR {vals[\$1] = \$1 "\\t" \$2 "\\t" \$3 ; next} \\
         !(\$1 in vals) {vals[\$1] = \$1 "\\t" "0\\t0"} \\
         {\$(NF+1) = vals[\$1]; print vals[\$1]}' ${prefix}.trim.info <(tail -n +2 ${table}) \\

@@ -33,10 +33,22 @@ process TSV_MERGE {
     def prefix   = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
     def chunksize = options.get('chunksize', 1_000_000)
 
+    def suffixes_full = []
+    if (suffixes instanceof List) {
+        if (suffixes.size()==1) {
+            suffixes_full = suffixes.collect() * files.size()
+        } else {
+            suffixes_full = suffixes.collect()
+        }
+    } else {
+        suffixes_full = [suffixes] * files.size()
+    }
+    assert suffixes_full.size()==files.size(): sprintf("Number of suffixes not equal to the number of files: %d vs %d", suffixes.size(), files.size())
+
     header_command = ''
-    for (v in [files, suffixes].transpose()) {
+    for (v in [files, suffixes_full].transpose()) {
         file = v[0]
-        suffix = v[1].length()>0 ? '__'+v[1] : ''
+        suffix = v[1].length()>0 ? '_'+v[1] : ''
         header_command += "head -n 1 ${file} | sed 's/\\t/${suffix}\\t/g' | sed 's/\$/${suffix}/' | sed 's/#//g' | tr '\\n' '\\t' >> header.txt\n"
     }
 
