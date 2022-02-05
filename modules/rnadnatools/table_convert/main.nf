@@ -2,8 +2,8 @@
 include { initOptions; saveFiles; getSoftwareName } from './functions'
 
 params.options = [:]
-params.options.args.input_format = params.options.args.get('input_format', 'tsv')
-params.options.args.output_format = params.options.args.get('output_format', 'parquet')
+params.options.args.input_format = params.options.args.getOrDefault('input_format', 'tsv')
+params.options.args.output_format = params.options.args.getOrDefault('output_format', 'parquet')
 options        = initOptions(params.options)
 
 process RNADNATOOLS_TABLE_CONVERT {
@@ -13,6 +13,7 @@ process RNADNATOOLS_TABLE_CONVERT {
         mode: params.publish_dir_mode,
         saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
 
+//    cache "${params.cache}"
     conda (params.enable_conda ? "${moduleDir}/../environment.yml" : null)
 
     input:
@@ -27,14 +28,14 @@ process RNADNATOOLS_TABLE_CONVERT {
     script:
     def software = getSoftwareName(task.process)
     def prefix   = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
-    def chunksize = options.get('chunksize', 1_000_000)
-    //def filename = table[0].take(table[0].lastIndexOf('.'))
+    def chunksize = options.getOrDefault('chunksize', 1_000_000)
+    def filename = table.name.replaceFirst(~/\.[^\.]+$/, '') // Get the filename without extension
 
     """
     rnadnatools table convert -i ${options.args.input_format} \
                               -o ${options.args.output_format} \
                               --chunksize ${chunksize} \
-                              ${table} ${table}.${options.args.output_format}
+                              ${table} ${filename}.${options.args.output_format}
 
     python -c "import rnadnatools; print('rnadnatools', rnadnatools.__version__)" > ${software}.version.txt
     """

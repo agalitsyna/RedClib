@@ -12,6 +12,7 @@ process TSV_MERGE {
     publishDir "${params.outdir}",
         mode: params.publish_dir_mode,
         saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
+//    cache "${params.cache}"
 
 //    conda (params.enable_conda ? "${moduleDir}/environment_pyarrow.yml" : null)
 //    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
@@ -31,7 +32,7 @@ process TSV_MERGE {
     script:
     def software = getSoftwareName(task.process)
     def prefix   = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
-    def chunksize = options.get('chunksize', 1_000_000)
+    def chunksize = options.getOrDefault('chunksize', 1_000_000)
 
     def suffixes_full = []
     if (suffixes instanceof List) {

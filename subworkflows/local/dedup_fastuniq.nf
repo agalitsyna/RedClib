@@ -4,7 +4,7 @@
 
 params.options = [:]
 
-def dedup_crop = params.get('protocol', [:]).get('dedup_crop', 50) // Crop 50 bp by default
+def dedup_crop = params.getOrDefault('protocol', [:]).getOrDefault('dedup_crop', 50) // Crop 50 bp by default
 
 include { TRIMMOMATIC as FASTQ_CROP } from '../../modules/local/trimmomatic/main' addParams( options: [args: 'CROP:'+dedup_crop, suffix:'.crop', args2: [gzip: false]])
 include { FASTUNIQ } from '../../modules/local/fastuniq/main' addParams( options: [:] )

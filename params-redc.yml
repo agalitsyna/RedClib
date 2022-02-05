@@ -1,4 +1,5 @@
 input: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/samplesheet.csv' # required
+cache: 'lenient'
 
 genome:
     assembly: 'hg38' # required
@@ -17,7 +18,7 @@ genome:
 
 protocol:
     check_restriction: true
-#    chunksize: 1000
+    chunksize: 20000
     renzymes:
         - DpnII
         - HindIII
@@ -99,12 +100,12 @@ short_oligos:
         reference_column: 3 # zero-based number of a column
         position: 35
         side: 1
-    tmp_short_oligo:
-        sequence: 'A'
-        reference_oligo: ggg
-        reference_column: 3 # zero-based number of a column
-        position: 0
-        side: 2
+#    tmp_short_oligo:
+#        sequence: 'A'
+#        reference_oligo: ggg
+#        reference_column: 3 # zero-based number of a column
+#        position: 0
+#        side: 2
 
 complementary:
     length: 14
@@ -117,7 +118,6 @@ complementary:
 fragments:
     dna:
         side: 1 # forward or reverse
-        extension_suffix: "GATC" # Optional. Remove this parameter if you don't need DNA extension
         new_columns: # Expressions to be evaluated and stored under following keys; positions numbering starts from 0, should output int:
             read_dna_start: "np.where( (end_hit_adaptor_forward_R1!=99999), end_hit_adaptor_forward_R1, 0)"
             read_dna_end: "np.where( (start_hit_bridge_forward_R1<trim_R1), start_hit_bridge_forward_R1, trim_R1)"
@@ -125,6 +125,20 @@ fragments:
             read_dna_end_notrim: "np.where( (start_hit_bridge_forward_R1!=99999), start_hit_bridge_forward_R1, rlen1)"
             read_dna_length_notrim: "read_dna_end_notrim-read_dna_start"
         selection_criteria: "read_dna_length>14" # write fragment to the file only if condition is satisfies
+        mapping_args: '-k 10 --no-softclip --no-spliced-alignment'
+
+    dna_ext:
+        side: 1
+        #extension_prefix: "GA" # For cases when you want to add prefix
+        extension_suffix: "GATC" # Optional. Remove this parameter if you don't need DNA extension
+        new_columns:
+            read_dna_ext_start: "np.where( (end_hit_adaptor_forward_R1!=99999), end_hit_adaptor_forward_R1, 0)"
+            read_dna_ext_end: "np.where( (start_hit_bridge_forward_R1<trim_R1), start_hit_bridge_forward_R1, trim_R1)"
+            read_dna_ext_length: "read_dna_ext_end-read_dna_ext_start"
+            read_dna_ext_end_notrim: "np.where( (start_hit_bridge_forward_R1!=99999), start_hit_bridge_forward_R1, rlen1)"
+            read_dna_ext_length_notrim: "read_dna_ext_end_notrim-read_dna_ext_start"
+        selection_criteria: "read_dna_ext_length>14"
+        mapping_args: '-k 10 --no-softclip --no-spliced-alignment'
 
     rna1:
         side: 1
@@ -133,7 +147,10 @@ fragments:
             read_rna1_end: "np.array( [trim_R1, end_hit_compl_R1, start_hit_adaptor_reverse_short_R1] ).min(axis=0)"
             read_rna1_length: "read_rna1_end-read_rna1_start"
         selection_criteria: "read_rna1_length>14"
-    
+        mapping_args: '-k 10 --no-softclip --dta-cufflinks --known-splicesite-infile'
+        annotate_restriction:
+            - ['NlaIII', 'b']
+
     rna2:
         side: 2
         new_columns:
@@ -141,6 +158,11 @@ fragments:
             read_rna2_end: "np.array( [trim_R2, start_hit_bridge_reverse_R2, end_hit_compl_R2] ).min(axis=0)"
             read_rna2_length: "read_rna2_end-read_rna2_start"
         selection_criteria: "read_rna2_length>14"
+        mapping_args: '-k 10 --no-softclip --dta-cufflinks --known-splicesite-infile'
+        annotate_restriction:
+            - ['MmeI', '+']
+            - ['MmeI', '-']
+            - ['NlaIII', 'b']
 
 filters:
   # Restriction filters:
@@ -149,16 +171,16 @@ filters:
           - '(strand_rna2=="+") & (rna2_start_MmeIn_right<=19) & (rna2_start_MmeIn_right>=-18)'
           - '(strand_rna2=="-") & (rna2_end_MmeIp_left<=-25) & (rna2_end_MmeIp_left>=-26)'
           - '(strand_rna2=="-") & (rna2_end_MmeIn_right<=21) & (rna2_end_MmeIn_right>=20)'
-#  rna2_nla_failed:
-#          - '(strand_rna2=="+") & (rna2_start_NlaIII_left>=-5) & (rna2_start_NlaIII_left<=0)'
-#          - '(strand_rna2=="+") & (rna2_start_NlaIII_right>=0) & (rna2_start_NlaIII_right<=1)'
-#          - '(strand_rna2=="-") & (rna2_end_NlaIII_left>=-5) & (rna2_end_NlaIII_left<=0)'
-#          - '(strand_rna2=="-") & (rna2_end_NlaIII_right>=0) & (rna2_end_NlaIII_right<=1)'
-#  rna1_nla_failed:
-#          - '(strand_rna1=="+") & (rna1_start_NlaIII_left>=-5) & (rna1_start_NlaIII_left<=0)'
-#          - '(strand_rna1=="+") & (rna1_start_NlaIII_right>=0) & (rna1_start_NlaIII_right<=1)'
-#          - '(strand_rna1=="-") & (rna1_end_NlaIII_left>=-5) & (rna1_end_NlaIII_left<=0)'
-#          - '(strand_rna1=="-") & (rna1_end_NlaIII_right>=0) & (rna1_end_NlaIII_right<=1)'
+  rna2_nla_failed:
+          - '(strand_rna2=="+") & (rna2_start_NlaIII_left>=-5) & (rna2_start_NlaIII_left<=0)'
+          - '(strand_rna2=="+") & (rna2_start_NlaIII_right>=0) & (rna2_start_NlaIII_right<=1)'
+          - '(strand_rna2=="-") & (rna2_end_NlaIII_left>=-5) & (rna2_end_NlaIII_left<=0)'
+          - '(strand_rna2=="-") & (rna2_end_NlaIII_right>=0) & (rna2_end_NlaIII_right<=1)'
+  rna1_nla_failed:
+          - '(strand_rna1=="+") & (rna1_start_NlaIII_left>=-5) & (rna1_start_NlaIII_left<=0)'
+          - '(strand_rna1=="+") & (rna1_start_NlaIII_right>=0) & (rna1_start_NlaIII_right<=1)'
+          - '(strand_rna1=="-") & (rna1_end_NlaIII_left>=-5) & (rna1_end_NlaIII_left<=0)'
+          - '(strand_rna1=="-") & (rna1_end_NlaIII_right>=0) & (rna1_end_NlaIII_right<=1)'
 
   # Pattern for filtering the relevant chromosomes:
   ###canonical_chromosomes: "chr[0-9,X,Y]|chr[0-9][0-9]"
@@ -174,53 +196,53 @@ filters:
   # Filter 3: Reverse read starts with GGG
   F3_goodGGG: "(start_hit_ggg_R2<9999)"
   # Filter 4: DNA length 18-20
-#  F4_goodDNAlength: "(dna_R1_len_notrim>=18)&(dna_R1_len_notrim<=20)"
-#  # Filter 5: RNA is >= 14 bp before trimming and RNA1 >= 14 bp
-#  F5_goodRNAlength: "(rna1_R1_len_notrim>=14)&(rna2_R2_len_notrim>=14)"
-#  # Filter 6: Trimming passed
-#  F6_passedTrimming: "(trimF>0)&(trimR>0)"
-#  # Filter 6a: Trimmed segments are > 14 bp
-#  F6a_passedTrimming_strict: "(dna_R1_len_trim_adjusted>=18)&(dna_R1_len_trim_adjusted<=20)&(rna1_R1_len_trim_adjusted>=14)&(rna2_R2_len_trim_adjusted>=14)"
-#  # Filter 7: All three segments are uniquely mapped to chromosomes
+  F4_goodDNAlength: "(read_dna_length_notrim>=18)&(read_dna_length_notrim<=20)"
+  # Filter 5: RNA is >= 14 bp before trimming and RNA1 >= 14 bp
+  F5_goodRNAlength: "(read_rna1_length_notrim>=14)&(read_rna2_length_notrim>=14)"
+  # Filter 6: Trimming passed
+  F6_passedTrimming: "('trim_R1>0)&('trim_R2>0)"
+  # Filter 6a: Trimmed segments are > 14 bp
+  F6a_passedTrimming_strict: "(read_dna_length>=18)&(read_dna_length<=20)&(read_rna1_length>=14)&(read_rna2_length>=14)"
+  # Filter 7: All three segments are uniquely mapped to chromosomes
 #  F7_uniqueCanonical: "dna_is_not_multi & rna1_is_not_multi & rna2_is_not_multi & dna_is_mapped & rna1_is_mapped & rna2_is_mapped" #& dna_chr_canonical & rna1_chr_canonical & rna2_chr_canonical"
-#  F7a_RNAsameChr: "rna1_chr==rna2_chr"
-#  F7b_RNAoppositeStrands: "rna1_strand!=rna2_strand"
-#  # Filter 8a: Same pos of DNA and RNA
-#  F8a_notRNADNASamePos: "~RNADNASamePos"
-#  # Filter 8b: Confirm absence of NlaIII and MmeI influence on RNA
-#  F8b_RNAnotDigested: "~rna1_nla_failed & ~rna2_nla_failed & ~rna2_mme_failed"
-#  # Filter 9: RNA1 and RNA distance is small enough
-#  F9_closeRNA: "np.abs(rna2_start-rna1_start)<1e4"
+  F7_uniqueCanonical: "isUnique" # To be changed to annotation of multiple mappers
+  F7a_RNAsameChr: "chrom_rna1==chrom_rna2"
+  F7b_RNAoppositeStrands: "strand_rna1!=strand_rna2"
+  # Filter 8a: Same pos of DNA and RNA
+  F8a_notRNADNASamePos: "~RNADNASamePos"
+  # Filter 8b: Confirm absence of NlaIII and MmeI influence on RNA
+  F8b_RNAnotDigested: "~rna1_nla_failed & ~rna2_nla_failed & ~rna2_mme_failed"
+  # Filter 9: RNA1 and RNA distance is small enough
+  F9_closeRNA: "np.abs(start_rna2-start_rna1)<1e4"
 
   # Applying sequential filters, similar ones were used in the supplementary table for RedC paper:
   V0:  "(np.ones(len(F1_notDup)))"
   V1:  "(F1_notDup)"
   V2:  "(F1_notDup & F2_goodBridge)"
   V3:  "(V2 & F3_goodGGG)"
-#  V4:  "(V3 & F4_goodDNAlength)"
-#  V35: "(V3 & F5_goodRNAlength)"
-#  V5:  "(V4 & F5_goodRNAlength)"
-#  V24: "(V2 & F4_goodDNAlength)"
-#  V25: "(V2 & F5_goodRNAlength)"
-#  V6:  "(V5 & F6_passedTrimming)"
-#  V6a: "(V5 & F6a_passedTrimming_strict)"
-#  V7:  "(V5 & F6_passedTrimming & F6a_passedTrimming_strict & F7_uniqueCanonical)"
-#  V7a: "(V7 & F7a_RNAsameChr)"
-#  V7b: "(V7 & F7a_RNAsameChr & F7b_RNAoppositeStrands)"
-#  V8a: "(V7b & F8a_notRNADNASamePos)"
-#  V8b: "(V7b & F8a_notRNADNASamePos & F8b_RNAnotDigested)"
-#  V9:  "(V8b & F9_closeRNA)"
+  V4:  "(V3 & F4_goodDNAlength)"
+  V35: "(V3 & F5_goodRNAlength)"
+  V5:  "(V4 & F5_goodRNAlength)"
+  V24: "(V2 & F4_goodDNAlength)"
+  V25: "(V2 & F5_goodRNAlength)"
+  V6:  "(V5 & F6_passedTrimming)"
+  V6a: "(V5 & F6a_passedTrimming_strict)"
+  V7:  "(V5 & F6_passedTrimming & F6a_passedTrimming_strict & F7_uniqueCanonical)"
+  V7a: "(V7 & F7a_RNAsameChr)"
+  V7b: "(V7 & F7a_RNAsameChr & F7b_RNAoppositeStrands)"
+  V8a: "(V7b & F8a_notRNADNASamePos)"
+  V8b: "(V7b & F8a_notRNADNASamePos & F8b_RNAnotDigested)"
+  V9:  "(V8b & F9_closeRNA)"
 
 
 output:
-    make_final_table: true
     tables:
         # You may specify one or multiple tables for different filters and sets of output columns.
         # Syntax:
         # table_name:
         #    filter: "filter_name"
         #    header: "<list-of-columns>"
-        resulting_table1:
+        default:
             filter: "V9"
             header: "id rna1_chr rna1_start rna1_end rna1_strand rna1_cigar rna2_chr rna2_start rna2_end rna2_strand rna2_cigar dna_chr dna_start dna_end dna_strand dna_cigar"
         # Demonstration of alternative table structure. Note that this table will be huge and useless for real data:
@@ -228,17 +250,18 @@ output:
             filter: "V1"
             header: "id V9 seqR1 seqR2"
 
-    make_cooler: true
-    cooler_properties: # Describe what to use for coolers (required):
-        table_name: resulting_table1
-        resolution: 1000
-        c1: 2   # Column with chromosome name for RNA part
-        c2: 12  # Column with chromosome name for DNA part
-        p1: 3   # Column with start for RNA part
-        p2: 13  # Column with start for DNA part
+    cooler: # Describe what to use for coolers (required):
+        default:
+            table_name: default
+            resolution: 1000000
+            c1: 2   # Column with chromosome name for RNA part
+            c2: 12  # Column with chromosome name for DNA part
+            p1: 3   # Column with start for RNA part
+            p2: 13  # Column with start for DNA part
 
     # Report the sum over the following columns:
-    report_stats:
+    stats:
+        default:
             - V0
             - V1
             - V2

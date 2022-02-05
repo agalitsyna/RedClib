@@ -11,6 +11,7 @@ process FASTUNIQ {
         mode: params.publish_dir_mode,
         saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
 
+//    cache "${params.cache}"
     conda (params.enable_conda ? "bioconda::fastuniq=1.1 anaconda::gawk=5.1.0" : null)
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "https://depot.galaxyproject.org/singularity/fastuniq:1.1--0"

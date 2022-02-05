@@ -20,6 +20,7 @@ process FASTQ_SPLIT {
         mode: params.publish_dir_mode,
         saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
 
+//    cache "$params.cache"
     conda (params.enable_conda ? "bioconda::tabix=1.11 conda-forge::coreutils=8.31" : null)
 
     input:
@@ -33,7 +34,7 @@ process FASTQ_SPLIT {
     def software = getSoftwareName(task.process)
     def prefix   = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
 
-    def chunksize = options.args.get('chunksize', 10000000000) // Practially no chunking by default
+    def chunksize = options.args.getOrDefault('chunksize', 10000000000) // Practially no chunking by default
 
     def input_fq1=reads[0]
     def readCmd = (isGZ(input_fq1.toString())) ?  "bgzip -dc -@ ${task.cpus}" : "cat"
@@ -44,6 +45,7 @@ process FASTQ_SPLIT {
     }
     """
     ${Cmd}
+
     echo 'fastq_split ${VERSION}' > ${software}.version.txt
     """
 }

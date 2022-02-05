@@ -4,7 +4,7 @@
 
 params.options = [:]
 
-def trimmomatic_params = params.get('protocol', [:]).get('trimmomatic_params', '')
+def trimmomatic_params = params.getOrDefault('protocol', [:]).getOrDefault('trimmomatic_params', '')
 
 include { TRIMMOMATIC as FASTQ_TRIM } from '../../modules/local/trimmomatic/main' addParams( options: [args: trimmomatic_params, suffix:'.trim', args2: [gzip: false]])
 include { TABLE_TRIM } from '../../modules/local/table_trimmomatic' addParams( options: [:] )

@@ -2,9 +2,10 @@
 include { initOptions; saveFiles; getSoftwareName } from './functions'
 
 params.options = [:]
+params.options.args.input_format = params.options.args.getOrDefault('input_format', 'parquet')
 options        = initOptions(params.options)
 
-process RNADNATOOLS_READ_CHECK_NUCLEOTIDES {
+process RNADNATOOLS_TABLE_STATS {
     tag "$meta.id"
     label 'process_low'
     publishDir "${params.outdir}",
@@ -15,27 +16,26 @@ process RNADNATOOLS_READ_CHECK_NUCLEOTIDES {
     conda (params.enable_conda ? "${moduleDir}/../environment.yml" : null)
 
     input:
-    tuple val(meta), path(table)
-    val(meta_short_oligo)
-    tuple val(meta_ref), path(ref)
-
+    tuple val(meta), path(input)
+    val(cols)
 
     output:
-    tuple val(meta), path("*.tsv"), emit: hits
+    tuple val(meta), path("*.txt"), emit: table
     path  "*.version.txt"         , emit: version
 
     script:
     def software = getSoftwareName(task.process)
     def prefix   = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
+    def chunksize = options.getOrDefault('chunksize', 1_000_000)
+
+    def format = options.args.format
 
     """
-    rnadnatools read check-nucleotides --oligo ${meta_short_oligo.sequence} \
-        --oligo-name ${meta_short_oligo.id} \
-        --readid-colname readID --seq-colname R${meta_short_oligo.side} \
-        --ref-column ${meta_short_oligo.reference_column} --shift ${meta_short_oligo.position} \
-        ${table} ${ref} ${prefix}.${meta_short_oligo.id}.tsv
+    rnadnatools table stats -i ${options.args.input_format} \
+                            -c ${cols.join(',')} \
+                            --chunksize ${chunksize} \
+                            ${input} ${prefix}.stats.txt
 
     python -c "import rnadnatools; print('rnadnatools', rnadnatools.__version__)" > ${software}.version.txt
     """
-
 }

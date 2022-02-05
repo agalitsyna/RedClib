@@ -21,6 +21,7 @@ process GENOME_PREPARE_RNA_ANNOTATIONS {
         mode: params.publish_dir_mode,
         saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:assembly, publish_by_meta:'') }
 
+//    cache "${params.cache}"
     conda (params.enable_conda ? "anaconda::python=3.7 bioconda::tabix=1.11" : null)
 
     input:
@@ -35,7 +36,7 @@ process GENOME_PREPARE_RNA_ANNOTATIONS {
     def software = getSoftwareName(task.process)
     def genes_gtf = options.args.genes_gtf
     def rna_annot_name = assembly
-    def rna_annotation_suffix = options.args.get('rna_annotation_suffix', '')
+    def rna_annotation_suffix = options.args.getOrDefault('rna_annotation_suffix', '')
     def suffix = isGZ(genes_gtf) ? ".gz" : ""
     def getRNAAnnot = ""
     if (isURL(genes_gtf)) {

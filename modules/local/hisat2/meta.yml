@@ -1,7 +1,7 @@
 name: hisat2_align
 description: |
         Align RNA-Seq reads to a reference with HISAT2.
-        Extended version with no splicesites option.
+        Extended version with no splicesites option and input from meta.mapping_args.
 keywords:
     - align
     - fasta

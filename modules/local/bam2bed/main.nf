@@ -11,6 +11,7 @@ process BAM2BED {
         mode: params.publish_dir_mode,
         saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
 
+//    cache "${cacheMode}"
     conda (params.enable_conda ? "bioconda::bedtools=2.30 bioconda::samtools=1.14" : null)
 
     input:
@@ -25,9 +26,9 @@ process BAM2BED {
     def prefix   = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
 
     def cmd = ""
-    def filter1 = params.options.get("filter", "")
-    def filter2 = params.options.get("filter2", "")
-    def filter3 = params.options.get("filter3", "")
+    def filter1 = params.options.getOrDefault("filter", "")
+    def filter2 = params.options.getOrDefault("filter2", "")
+    def filter3 = params.options.getOrDefault("filter3", "")
 
     if (filter1) {
         cmd += "${filter1} ${bam} "

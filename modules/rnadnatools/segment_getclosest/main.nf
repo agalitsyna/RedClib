@@ -2,7 +2,7 @@
 include { initOptions; saveFiles; getSoftwareName } from './functions'
 
 params.options = [:]
-params.options.args.output_format = params.options.args.get('output_format', 'parquet')
+params.options.args.output_format = params.options.args.getOrDefault('output_format', 'parquet')
 options        = initOptions(params.options)
 
 process RNADNATOOLS_SEGMENT_GETCLOSEST {
@@ -11,7 +11,8 @@ process RNADNATOOLS_SEGMENT_GETCLOSEST {
     publishDir "${params.outdir}",
         mode: params.publish_dir_mode,
         saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
-
+//    cache "${params.cache}"
+    
     conda (params.enable_conda ? "${moduleDir}/../environment.yml" : null)
 
     input:
@@ -33,12 +34,13 @@ process RNADNATOOLS_SEGMENT_GETCLOSEST {
 
     def renz_strand_key = (renz_strand=="+") ? "p" : (renz_strand=="-") ? "n" : ""  // p, n or empty
     def renz_strand_sub = (renz_strand=="+") ? "+" : (renz_strand=="-") ? "-" : "b"
+    def renz_shortname = "${renz_key}${renz_strand_key}"
     def columns = [
-        "read_id_${segment_name}",
-        "${segment_name}_start_${renz_key}${renz_strand_key}_left",
-        "${segment_name}_start_${renz_key}${renz_strand_key}_right",
-        "${segment_name}_end_${renz_key}${renz_strand_key}_left",
-        "${segment_name}_end_${renz_key}${renz_strand_key}_right"
+        "readID_${segment_name}_${renz_shortname}",
+        "${segment_name}_start_${renz_shortname}_left",
+        "${segment_name}_start_${renz_shortname}_right",
+        "${segment_name}_end_${renz_shortname}_left",
+        "${segment_name}_end_${renz_shortname}_right"
         ]
     def header = columns.join(",")
 

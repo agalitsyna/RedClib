@@ -12,6 +12,7 @@ process TABLE_TRIM {
     publishDir "${params.outdir}",
         mode: params.publish_dir_mode,
         saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
+//    cache "${params.cache}"
 
     input:
     tuple val(meta), path(table)

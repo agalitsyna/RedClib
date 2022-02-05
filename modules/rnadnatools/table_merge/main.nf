@@ -2,8 +2,8 @@
 include { initOptions; saveFiles; getSoftwareName } from './functions'
 
 params.options = [:]
-params.options.args.input_format = params.options.args.get('input_format', 'parquet')
-params.options.args.output_format = params.options.args.get('output_format', 'parquet')
+params.options.args.input_format = params.options.args.getOrDefault('input_format', 'parquet')
+params.options.args.output_format = params.options.args.getOrDefault('output_format', 'parquet')
 options        = initOptions(params.options)
 
 process RNADNATOOLS_TABLE_MERGE {
@@ -13,11 +13,11 @@ process RNADNATOOLS_TABLE_MERGE {
         mode: params.publish_dir_mode,
         saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
 
+//    cache "${params.cache}"
     conda (params.enable_conda ? "${moduleDir}/../environment.yml" : null)
 
     input:
-    val(meta)
-    path(input)
+    tuple val(meta), path(tables)
     val(suffixes)
 
     output:
@@ -29,21 +29,35 @@ process RNADNATOOLS_TABLE_MERGE {
     script:
     def software = getSoftwareName(task.process)
     def prefix   = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
-    def chunksize = options.get('chunksize', 1_000_000)
-    def filename = table.take(table.lastIndexOf('.'))
+    def chunksize = options.getOrDefault('chunksize', 1_000_000)
 
     def inputs = ""
-    if (input instanceof List) {
-            inputs = input.join(" ")
+    if (tables instanceof List) {
+            inputs = tables.join(" ")
         }
     else {
-        inputs = input
+        inputs = tables
     }
+
+    def suffixes_full = []
+    def colModifier = ""
+    if (suffixes instanceof List) {
+        if (suffixes.size()==1) {
+            suffixes_full = suffixes.collect() * tables.size()
+        } else {
+            suffixes_full = suffixes.collect()
+        }
+        assert suffixes_full.size()==tables.size(): sprintf("Number of suffixes not equal to the number of files: %d vs %d", suffixes.size(), tables.size())
+        suffixes_full = suffixes_full.collect { "{col_name}_"+it.toString() }
+        colModifier = "--col-modifiers " + suffixes_full.join(",")
+    }
+
 
     """
     rnadnatools table merge -i ${options.args.input_format} \
         -o ${options.args.output_format} \
-        ${filename}.${options.args.output_format} ${inputs}
+        ${colModifier} \
+        ${prefix}.${options.args.output_format} ${inputs}
 
     python -c "import rnadnatools; print('rnadnatools', rnadnatools.__version__)" > ${software}.version.txt
     """

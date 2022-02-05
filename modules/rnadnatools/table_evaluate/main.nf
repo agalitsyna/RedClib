@@ -2,8 +2,8 @@
 include { initOptions; saveFiles; getSoftwareName } from './functions'
 
 params.options = [:]
-params.options.args.input_format = params.options.args.get('input_format', 'parquet')
-params.options.args.output_format = params.options.args.get('output_format', 'parquet')
+params.options.args.input_format = params.options.args.getOrDefault('input_format', 'parquet')
+params.options.args.output_format = params.options.args.getOrDefault('output_format', 'parquet')
 options        = initOptions(params.options)
 
 process RNADNATOOLS_TABLE_EVALUATE {
@@ -13,6 +13,7 @@ process RNADNATOOLS_TABLE_EVALUATE {
         mode: params.publish_dir_mode,
         saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
 
+//    cache "${params.cache}"
     conda (params.enable_conda ? "${moduleDir}/../environment.yml" : null)
 
     input:

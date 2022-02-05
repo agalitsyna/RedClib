@@ -11,6 +11,7 @@ process TRIMMOMATIC {
         mode: params.publish_dir_mode,
         saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
 
+//    cache "${params.cache}"
     conda (params.enable_conda ? "bioconda::trimmomatic=0.39" : null)
 //    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
 //        container "https://depot.galaxyproject.org/singularity/YOUR-TOOL-HERE"
@@ -28,7 +29,7 @@ process TRIMMOMATIC {
     script:
     def software = getSoftwareName(task.process)
     def prefix   = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
-    def format = options.args2.get("gzip", true) ? '.gz' : ''
+    def format = options.args2.getOrDefault("gzip", true) ? '.gz' : ''
 
     if (meta.single_end) {
         def fastq_r1 = fastq[0]

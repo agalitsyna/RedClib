@@ -13,11 +13,12 @@ process COOLER_MAKE {
         mode: params.publish_dir_mode,
         saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
 
+//    cache "${params.cache}"
     conda (params.enable_conda ? "bioconda::cooler=0.8.11" : null)
 
     input:
     tuple val(meta), path(table)
-    tuple path(chromsizes)
+    path(chromsizes)
 
     output:
     tuple val(meta), path("*.cool"), emit: cool
@@ -27,15 +28,17 @@ process COOLER_MAKE {
     def software = getSoftwareName(task.process)
     def prefix   = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
 
-    def assembly = options.get("assembly", "assembly")
-    def resolution = options.get("resolution", 1000000) // default 1Mb
-    def c1 = options.get("c1", 1) // By default, we assume regular pairs file
-    def c2 = options.get("c2", 2)
-    def p1 = options.get("p1", 3)
-    def p2 = options.get("p2", 4)
+    // Define the parameters. Pick from meta first, then check process options:
+    def assembly = meta.getOrDefault("assembly", options.getOrDefault("assembly", "assembly"))
+    def resolution = meta.getOrDefault("resolution", options.getOrDefault("resolution", 1000000))
+    // By default, we assume regular pairs file:
+    def c1 = meta.getOrDefault("c1", options.getOrDefault("c1", 1))
+    def c2 = meta.getOrDefault("c2", options.getOrDefault("c2", 2))
+    def p1 = meta.getOrDefault("p1", options.getOrDefault("p1", 3))
+    def p2 = meta.getOrDefault("p2", options.getOrDefault("p2", 4))
 
     """
-    cooler makebins ${chromsizes} 1000 > ${assembly}.${resolution}.bins.txt
+    cooler makebins ${chromsizes} ${resolution} > ${assembly}.${resolution}.bins.txt
     cooler cload pairs ${options.args} \
       -c1 ${c1} -c2 ${c2} \
       -p1 ${p1} -p2 ${p2} \
