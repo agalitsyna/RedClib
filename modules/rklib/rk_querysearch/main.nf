@@ -34,11 +34,13 @@ process RKLIB_QUERYSEARCH {
     def read_length = meta.rlen
     def oligo_length = meta_oligos.expected_length
 
+    def right_to_left = meta_oligos['right_to_left'] ? 1: 0
+
     if (meta.single_end) {
         """
         rk_querysearch ${bin_oligos} ${bin_reads[0]} ${oligo_length} ${read_length} \
             ${meta_oligos.n_oligos} ${left_allowed_shift} ${right_allowed_shift} \\
-            ${meta_oligos.mismatches_allowed} \\
+            ${meta_oligos.mismatches_allowed} ${right_to_left} \\
             > ${prefix}.tsv
 
         echo $VERSION > ${software}.version.txt
@@ -48,7 +50,7 @@ process RKLIB_QUERYSEARCH {
             """
             rk_querysearch ${bin_oligos} ${bin_reads[0]} ${oligo_length} ${read_length} \\
                 ${meta_oligos.n_oligos} ${left_allowed_shift} ${right_allowed_shift} \\
-                ${meta_oligos.mismatches_allowed} \\
+                ${meta_oligos.mismatches_allowed} ${right_to_left} \\
                 > ${prefix}.R1.tsv
 
             echo $VERSION > ${software}.version.txt
@@ -57,7 +59,7 @@ process RKLIB_QUERYSEARCH {
             """
             rk_querysearch ${bin_oligos} ${bin_reads[1]} ${oligo_length} ${read_length} \\
                 ${meta_oligos.n_oligos} ${left_allowed_shift} ${right_allowed_shift} \\
-                ${meta_oligos.mismatches_allowed} \\
+                ${meta_oligos.mismatches_allowed} ${right_to_left} \\
                 > ${prefix}.R2.tsv
 
             echo $VERSION > ${software}.version.txt
@@ -66,12 +68,12 @@ process RKLIB_QUERYSEARCH {
             """
             rk_querysearch ${bin_oligos} ${bin_reads[0]} ${oligo_length} ${read_length} \\
                 ${meta_oligos.n_oligos} ${left_allowed_shift} ${right_allowed_shift} \\
-                ${meta_oligos.mismatches_allowed} \\
+                ${meta_oligos.mismatches_allowed} ${right_to_left} \\
                 > ${prefix}.R1.tsv
 
             rk_querysearch ${bin_oligos} ${bin_reads[1]} ${oligo_length} ${read_length} \\
                 ${meta_oligos.n_oligos} ${left_allowed_shift} ${right_allowed_shift} \\
-                ${meta_oligos.mismatches_allowed} \\
+                ${meta_oligos.mismatches_allowed} ${right_to_left} \\
                 > ${prefix}.R1.tsv
 
             echo $VERSION > ${software}.version.txt

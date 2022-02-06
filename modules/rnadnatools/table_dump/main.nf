@@ -32,13 +32,19 @@ process RNADNATOOLS_TABLE_DUMP {
 
     def format = options.args.format
 
+    def inputs = ""
+    if (input instanceof List) {
+            inputs = input.join(" ")
+        }
+    else {
+        inputs = input
+    }
     """
     rnadnatools table dump -i ${options.args.input_format} \
                            -o ${options.args.output_format} \
                            -f ${filter} \
                            -c ${columns.join(',')} \
-                           --chunksize ${chunksize} \
-                           ${input} ${prefix}.${options.args.output_format}
+                           ${prefix}.${options.args.output_format} ${inputs}
 
     python -c "import rnadnatools; print('rnadnatools', rnadnatools.__version__)" > ${software}.version.txt
     """

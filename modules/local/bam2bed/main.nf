@@ -25,27 +25,50 @@ process BAM2BED {
     def software = getSoftwareName(task.process)
     def prefix   = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
 
-    def cmd = ""
-    def filter1 = params.options.getOrDefault("filter", "")
-    def filter2 = params.options.getOrDefault("filter2", "")
-    def filter3 = params.options.getOrDefault("filter3", "")
+    def extraTags = options.args.getOrDefault('extraTags', [])
+    def filter = options.args.getOrDefault('samFilter', '')
+    def tmpFiles = ["tmp.txt"]
 
-    if (filter1) {
-        cmd += "${filter1} ${bam} "
-    }
-    if (filter2) {
-        cmd += " | ${filter2} "
-    }
-    if (filter3) {
-        cmd += " | ${filter3} "
-    }
+    Cmd = "samtools view -h ${bam}"
+    if (filter) {Cmd += " | " + filter + " | "}
 
-    cmd += " | bedtools bamtobed -cigar -i stdin "
-
+    if (extraTags.size()>0) {
+        Cmd += " | tee >(bedtools bamtobed -i - -cigar > tmp.txt) "
+        extraTags.eachWithIndex{ tag, i ->
+            Cmd += ">(bedtools bamtobed -i - -tag ${tag} | awk '{print \$5}' > tmp${i}.txt) "
+            tmpFiles += "tmp${i}.txt"
+        }
+    }
+    Cmd += " | cat "
     """
-    ${cmd} > ${prefix}.bed
+
+    ${Cmd}
+
+    paste ${tmpFiles.join(' ')} > ${prefix}.bed
 
     bedtools --version &> ${software}.version.txt
     samtools --version | head -n 2 > ${software}.version.txt
     """
 }
+
+//    def cmd = ""
+//    def filter1 = params.options.getOrDefault("filter", "")
+//    def filter2 = params.options.getOrDefault("filter2", "")
+//    def filter3 = params.options.getOrDefault("filter3", "")
+//
+//    if (filter1) {
+//        cmd += "${filter1} ${bam} "
+//    }
+//    if (filter2) {
+//        cmd += " | ${filter2} "
+//    }
+//    if (filter3) {
+//        cmd += " | ${filter3} "
+//    }
+//
+//    cmd += " | bedtools bamtobed -cigar -i stdin "
+
+//     // Filter unmapped, retain reads with up to 2 substitutions:
+//     filter: 'samtools view -h -F 4 -d XM:0 -d XM:1 -d XM:2',
+//     // Filter uniquely mapped:
+//     filter2: 'samtools view -h -d NH:1 -'

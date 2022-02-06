@@ -25,33 +25,61 @@ process RKLIB_SEQ2HASH {
     def prefix = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
     def mode   = options.args.getOrDefault('mode', 'fasta')
 
+    // If the read length is not the same in the file, the hashing will work, but the rklib will fail to produce correct answers,
+    // because it assumes equal read lengths. Thus we may force the reads to equal length (filling with N):
+    def rlen = options.args.getOrDefault('force_rlen', 0)
+    def extraN = "N"*(rlen+1)
+
+    def Cmd = ""
+    def software = ""
+
     if (mode=='fasta') {
-        def software = "fasta2bin"
-        if (meta.single_end) {
-            """
-            fasta2hash ${reads[0]} ${prefix}.bin
-            echo $VERSION > ${software}.version.txt
-            """
-        } else {
-            """
-            fasta2hash ${reads[0]} ${prefix}.R1.bin
-            fasta2hash ${reads[1]} ${prefix}.R2.bin
-            echo $VERSION > ${software}.version.txt
-            """
+        software = "fasta2bin"
+        if (rlen) { // Extend reads to equal length and then convert:
+            if (meta.single_end) {
+                Cmd += "awk '{if (NR%2==2) print substr(\$0\"${extraN}\", 1, 10); else print \$0}' ${reads[0]} > tmp_r1.fa\n"
+                Cmd += "fasta2hash tmp_r1.fa ${prefix}.bin\n"
+            } else {
+                Cmd += "awk '{if (NR%2==2) print substr(\$0\"${extraN}\", 1, 10); else print \$0}' ${reads[0]} > tmp_r1.fa\n"
+                Cmd += "awk '{if (NR%2==2) print substr(\$0\"${extraN}\", 1, 10); else print \$0}' ${reads[1]} > tmp_r2.fa\n"
+                Cmd += "fasta2hash tmp_r1.fa ${prefix}.R1.bin\n"
+                Cmd += "fasta2hash tmp_r2.fa ${prefix}.R2.bin\n"
+            }
+        } else { // No need to extend reads to equal length:
+            if (meta.single_end) {
+                Cmd += "awk '{if (NR%2==2) print substr(\$0\"${extraN}\", 1, 10); else print \$0}' ${reads[0]} > tmp_r1.fa\n"
+                Cmd += "fasta2hash tmp_r1.fa ${prefix}.bin\n"
+            } else {
+                Cmd += "awk '{if (NR%2==2) print substr(\$0\"${extraN}\", 1, 10); else print \$0}' ${reads[0]} > tmp_r1.fa\n"
+                Cmd += "awk '{if (NR%2==2) print substr(\$0\"${extraN}\", 1, 10); else print \$0}' ${reads[1]} > tmp_r2.fa\n"
+                Cmd += "fasta2hash tmp_r1.fa ${prefix}.R1.bin\n"
+                Cmd += "fasta2hash tmp_r2.fa ${prefix}.R2.bin\n"
+            }
         }
     } else {
-        def software = "fastq2bin"
-        if (meta.single_end) {
-            """
-            fastq2hash ${reads[0]} ${prefix}.bin
-            echo $VERSION > ${software}.version.txt
-            """
-        } else {
-            """
-            fastq2hash ${reads[0]} ${prefix}.R1.bin
-            fastq2hash ${reads[1]} ${prefix}.R2.bin
-            echo $VERSION > ${software}.version.txt
-            """
+        software = "fastq2bin"
+        if (rlen) { // Extend reads to equal length and then convert:
+            if (meta.single_end) {
+                Cmd += "fastq2hash ${reads[0]} ${prefix}.bin\n"
+            } else {
+                Cmd += "fastq2hash ${reads[0]} ${prefix}.R1.bin\n"
+                Cmd += "fastq2hash ${reads[1]} ${prefix}.R2.bin\n"
+            }
+        } else { // No need to extend reads to equal length:
+            if (meta.single_end) {
+                Cmd += "fastq2hash ${reads[0]} ${prefix}.bin\n"
+            } else {
+                Cmd += "fastq2hash ${reads[0]} ${prefix}.R1.bin\n"
+                Cmd += "fastq2hash ${reads[1]} ${prefix}.R2.bin\n"
+            }
         }
     }
+
+    """
+
+    ${Cmd}
+
+    echo $VERSION > ${software}.version.txt
+
+    """
 }

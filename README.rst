@@ -1,6 +1,8 @@
-# Red-C nextflow pipeline (DSL2 version)
+Red-C nextflow pipeline (DSL2 version)
+=====================================
 
-## Introduction
+Introduction
+------------
 
 Welcome to Red-C RNA-DNA interactome mapping with [nextflow](https://www.nextflow.io/), DSL2 version.
 
@@ -21,7 +23,8 @@ Here we develop a DSL2 version of the pipeline that will be easy to adapt to cus
 
 Disclaimer: DSL2 version is not complete yet!
 
-## System requirements
+System requirements
+-------------------
 
 1. You need a system supporting nextflow pipelines. For example, you can create conda environment with nextflow, 
    which will contain redc-nf dependencies:
@@ -36,16 +39,31 @@ bash ./bin/prepare_binaries.sh
 2. Run test example:
 
 ```
-nextflow run redc.nf -profile test,conda,debug
+nextflow run redc.nf -profile test,conda -params-file params-redc.yml
 ```
 
-This example should take up to 4 minutes. 
-you may want to check that the results are the same as we provide in `output/` folder. 
+This example should take up to 30 minutes (depends a lot on your conda performance, as there are around five 
+different environments constructed along the run).
+You may want to check that the results in the `output/` folder. 
 
+In the future, we plan to add a small test that will allow you to validate the installation and run on a test dataset. 
 
-### Execution tracing
+Resume and other nextflow hints
+-------------------------------
 
-Nextflow allows [tracing and visualization of the execution](https://www.nextflow.io/docs/latest/tracing.html)
+- (1) Resume after interrupted run:
+
+`nextflow run redc.nf -profile test,conda -params-file params-redc.yml -resume -cache true`
+
+- (2) Resume after parameters change looks the same. We do not recommend to resume if only the values of parameters were changed in the config.
+
+- (3) Don't remove `work/` folder and `.nextflow*` files if you plan to run your pipeline multiple times on the same dataset in future. They serve as caching history. 
+
+- (4) When you are satisfied with the result and do not need to store cache, or if you want a fresh new start for your run, use: 
+
+`nextflow clean -f`
+
+- (5) Execution tracing. Nextflow allows [tracing and visualization of the execution](https://www.nextflow.io/docs/latest/tracing.html)
 of your pipeline:
 ```
 nextflow run redc.nf -profile test,conda,debug -with-dag flowchart.png -with-report report.html -with-timeline timeline.html

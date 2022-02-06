@@ -1,4 +1,4 @@
 sample,group,fastq_1,fastq_2,rlen,single_end
 test-sample_T1,test-sample,/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/fastq/sample_R1_001.fastq.gz,/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/fastq/sample_R2_001.fastq.gz,101,false
-test-download_T1,test-download,/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/fastq/test-download_T1_1.fastq.gz,/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/fastq/test-download_T1_2.fastq.gz,125,false
-test-download_T2,test-download,/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/fastq/test-download_T2_1.fastq.gz,/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/fastq/test-download_T2_2.fastq.gz,125,false
+test-download_T1,test-download,sra:SRR10010324:start=0&end=10000,,125,false
+test-download_T2,test-download,sra:SRR10010324:start=1&end=20000,,125,false

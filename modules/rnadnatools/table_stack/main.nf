@@ -34,8 +34,14 @@ process RNADNATOOLS_TABLE_STACK {
         inputs = input
     }
 
+    def columnsParam = "" // todo: check input list format
+    if (meta.columns){
+        columnsParam = "-c ${meta.columns.join(',')}"
+    }
+
     """
     rnadnatools table stack --validate-columns \
+        ${columnsParam} \
         -i ${options.args.input_format} \
         -o ${options.args.output_format} \
         ${prefix}.${options.args.output_format} ${inputs}

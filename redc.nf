@@ -108,12 +108,7 @@ include { FASTQ_EXTEND } from './modules/local/fastq_extend/main' addParams( opt
                                                              ], suffix:'.ext'] )
 
 include { HISAT2_ALIGN } from './modules/local/hisat2/main' addParams( options: [args: [:]] )
-include { BAM2BED } from './modules/local/bam2bed/main' addParams( options: [
-                                                             // Filter unmapped, retain reads with up to 2 substitutions:
-                                                             filter: 'samtools view -h -F 4 -d XM:0 -d XM:1 -d XM:2',
-                                                             // Filter uniquely mapped:
-                                                             filter2: 'samtools view -h -d NH:1 -'
-                                                             ])
+include { BAM2BED } from './modules/local/bam2bed/main' addParams( options: [args: [extraTags: ['NH', 'XM'], samFilter: '']])
 
 include { RNADNATOOLS_SEGMENT_GETCLOSEST as BED_ANNOTATE_RESTRICTION } from './modules/rnadnatools/segment_getclosest/main'  addParams( options: [args: [
                                                              output_format: 'parquet'
@@ -131,8 +126,8 @@ include { RNADNATOOLS_TABLE_ALIGN as TABLE_BED } from './modules/rnadnatools/tab
                                                              input_format: 'tsv',
                                                              ref_format: 'parquet',
                                                              output_format: 'parquet',
-                                                             params: '--no-input-header --fill-values .,-1,-1,.,0,.,. \
-                                                             --new-colnames chrom,start,end,readID,mapq,strand,cigar \
+                                                             params: '--no-input-header --fill-values .,-1,-1,.,0,.,.,-1,-1 \
+                                                             --new-colnames chrom,start,end,readID,mapq,strand,cigar,nMultiMap,nSub \
                                                              --key-column 3 --ref-colname readID'
                                                             ]] )
 
@@ -148,29 +143,29 @@ include { RNADNATOOLS_TABLE_MERGE as TABLE_RESTRICTION_MERGE } from './modules/r
                                                              output_format: 'parquet'
                                                              ], suffix:'.restriction'] )
 
-include { RNADNATOOLS_TABLE_STACK as RESULTS_STACK } from './modules/rnadnatools/table_stack/main' addParams( options: [
-                                                             args: [
-                                                             input_format: 'parquet',
-                                                             output_format: 'parquet'
-                                                             ]])
-
 include { RNADNATOOLS_TABLE_DUMP as RESULTS_DUMP } from './modules/rnadnatools/table_dump/main' addParams( options: [
                                                              args: [
                                                              input_format: 'parquet',
                                                              output_format: 'parquet'
                                                              ]])
 
-include { RNADNATOOLS_TABLE_STATS as RESULTS_STATS } from './modules/rnadnatools/table_stats/main' addParams( options: [
+include { RNADNATOOLS_TABLE_STACK as RESULTS_STACK } from './modules/rnadnatools/table_stack/main' addParams( options: [
                                                              args: [
-                                                             input_format: 'parquet'
+                                                             input_format: 'parquet',
+                                                             output_format: 'tsv'
                                                              ]])
 
-// Extra parameters of the metadata that might be dynamically added in the pipeline:
-def extraParams = ['fragment', 'side', 'selection_criteria', 'single_end', 'mapping_args', 'restriction', 'extended', 'ext_suffix', 'ext_prefix']
-def oligoParams = ['oligo', 'side', 'idx']
-def dedupParams = ['single_end']
+include { RNADNATOOLS_TABLE_STATS as RESULTS_STATS } from './modules/rnadnatools/table_stats/main' addParams( options: [
+                                                             args: [
+                                                             input_format: 'tsv'
+                                                             ]])
 
-include { COOLER_MAKE  } from './modules/local/cooler_make/main' addParams( options: [assembly: Assembly] )
+// Extra keys of the metadata that might be dynamically added in the pipeline:
+def extraKeys = ['fragment', 'side', 'selection_criteria', 'single_end', 'mapping_args', 'restriction', 'extended', 'ext_suffix', 'ext_prefix']
+def oligoKeys = ['oligo', 'side', 'idx']
+def dedupKeys = ['single_end']
+
+include { COOLER_MAKE  } from './modules/local/cooler_make/main' addParams( options: [args:[assembly: Assembly]] )
 
 
 // Define workflow
@@ -180,8 +175,8 @@ workflow REDC {
     // Check input FASTQ files
     Fastq = INPUT_CHECK_DOWNLOAD( file(InputSamplesheet) )
 
-    /* Check quality with FASTQC */
-    FASTQC( Fastq )
+//    /* Check quality with FASTQC */
+//    FASTQC( Fastq )
 
     /* Split into chunks */
     if (chunksize) {
@@ -241,7 +236,7 @@ workflow REDC {
                                     .mix(Hits.HitsShortOligos)
                                     .mix(Hits.HitsComplementary)
                                // Remove oligo parameters from metadata:
-                                    .map{ removeKeys(it, oligoParams ) }
+                                    .map{ removeKeys(it, oligoKeys ) }
                                // Group by metadata, which should be identical for the same sample/chunk
                                // Note that group size depends on the number of oligos and short oligos:
                                     .groupTuple(by:0, sort:true)
@@ -270,7 +265,7 @@ workflow REDC {
                                     reference: [ it[0], it[3] ]
                                     table: [ it[0], it[1] ]
                                 }
-    TableDedup = TABLE_DEDUP_ALIGN( DedupAlignInput ).table.map{ removeKeys(it, dedupParams) }
+    TableDedup = TABLE_DEDUP_ALIGN( DedupAlignInput ).table.map{ removeKeys(it, dedupKeys) }
 
     /* Collect fragment columns data. */
     // params.fragments has the list of new columns with expressions that will be evaluated for each fragment
@@ -361,7 +356,7 @@ workflow REDC {
                     // Remove rfrag tag from id and restructure the channel:
                         .map{ meta, table -> remove_tag([meta, [table, meta.fragment]]) }
                     // Remove any extra parameters of meta:
-                        .map{ removeKeys(it, extraParams) }
+                        .map{ removeKeys(it, extraKeys) }
                     // groupTuple with sorting to guarantee deterministic output,
                     // note that size depends on the number of fragments:
                         .groupTuple(by:0, sort:{it->it[1]})
@@ -409,7 +404,7 @@ workflow REDC {
                     // Remove restriction tag:
                         .map{ remove_tag(it, 2) }
                     // Remove any extra parameters of meta:
-                        .map{ removeKeys(it, extraParams ) }
+                        .map{ removeKeys(it, extraKeys ) }
                     // Group by meta. Note that size depends on the number of fragments:
                         .groupTuple(by:0, sort:true)
                     // Combine with empty suffixes(required input for TABLE_RESTRICTION_MERGE).
@@ -426,12 +421,12 @@ workflow REDC {
 
     /* Evaluation of final filters */
     /* Collect final tables */
-    TablesAll = Table.mix(TableBed)
+    TablesCollected = Table.mix(TableBed)
                         .mix(TableRestriction)
                         .mix(TableDedup)
                         .mix(TableFragmentsColumns)
                     // Remove any extra parameters of meta:
-                        .map{ removeKeys(it, extraParams) }
+                        .map{ removeKeys(it, extraKeys) }
                     // All channels have the same keys in meta, we can group by it.
                     // Channel: meta, [table, table_bed, table_dedup, table_fragments]
                     // (tables might be in some other order, sorting depends on full file names)
@@ -448,26 +443,16 @@ workflow REDC {
     }
 
     /* Evaluate filters on collected tables: */
-    TableEvaluateInput = TablesAll.combine(Channel.from(FilterColumns))
+    TableEvaluateInput = TablesCollected.combine(Channel.from(FilterColumns))
                           .multiMap{ it ->
                                 tables: [it[0], it[1]]
                                 filters: it[2]
                           }
     TableFinalChunked = TABLE_EVALUATE_FILTERS( TableEvaluateInput ).table
 
-    /* Merge final tables between replicates: */
-    TableStackChunksInput = TableFinalChunked.map{ it -> [it[0].original_id, [it[0], it[1]]] }
-                 // Group chunks and sort by chunk number:
-                     .groupTuple(by:0, sort:{it -> it[0].chunk})
-                 // Channel: [meta, [..tables..]] (tables are sorted by chunk)
-                     .map{id, it -> [it[0][0], it.transpose().collect()[1]]}
-                 // Replace id with original_id and remove chunk from meta:
-                    .map{ update_meta(it, [id: it[0].original_id]) }
-                    .map{ removeKeys(it, ['chunk']) }
-
-    TableFinal = RESULTS_STACK( TableStackChunksInput ).table
-
-    /* Report outputs */
+    /* Output tables */
+    TableAllChunked = TablesCollected.combine(TableFinalChunked, by:0)
+                        .map{it -> [it[0], it[1]+[it[2]]]}
 
     if (params.output['tables']){
 
@@ -476,19 +461,37 @@ workflow REDC {
                 params.output.tables.collect{ k, v -> [k, v['filter'], v['header'].split(" ")]}
             )
 
-        DumpInput = TableFinal.combine(FilesCollection)
-                    // Channel: [meta, file, table_name, filter, [header_columns]]
+        DumpInput = TableAllChunked.combine(FilesCollection)
+                    // Channel: [meta, files, table_name, filter, [header_columns]]
                     // Add tag with table name:
                         .map{ add_tag(it, it[2]) }
+                    // Add meta keys. Table_name is for identification of table type.
+                    // Columns will guarantee the order in STACK:
+                        .map{ update_meta(it, [table_name: it[2], columns:it[4]]) }
                     // Multi-channel:
                         .multiMap{ it ->
                             table: [it[0], it[1]]
                             filter: it[3]
                             columns: it[4]
                         }
-        TableDumped = RESULTS_DUMP( DumpInput ).table
-
+        TableDumpedChunked = RESULTS_DUMP( DumpInput ).table
+        TableChunked = TableDumpedChunked.mix( TableFinalChunked.map{ update_meta(it, [table_name:'filters']) } )
     }
+    else {
+        TableChunked = TableFinalChunked.map{ update_meta(it, [table_name:'filters']) }
+    }
+
+    /* Merge final tables between replicates: */
+    TableStackChunksInput = TableChunked.map{ it -> [[sample:it[0].original_id, table_name:it[0].table_name], [it[0], it[1]]] }
+                 // Group chunks and sort by chunk number:
+                     .groupTuple(by:0, sort:{it -> it[0].chunk})
+                 // Channel: [meta, [..tables..]] (tables were sorted by chunk and table type)
+                     .map{id, it -> [it[0][0], it.transpose().collect()[1]]}
+                 // Replace id with original_id and remove chunk from meta:
+                    .map{ update_meta(it, [id: it[0].original_id]) }
+                    .map{ removeKeys(it, ['chunk']) }
+
+    TableFinal = RESULTS_STACK( TableStackChunksInput ).table
 
     if (params.output['stats']){
         /* Write table with stats */
@@ -500,14 +503,16 @@ workflow REDC {
 
         StatsInput = TableFinal.combine(StatsList)
                     // Channel: [meta, file, stats_name, [cols]]
+                    // Filter appropriate tables:
+                        .filter{ it[0].table_name==it[3].table_name }
                     // Add tag with stats name:
                         .map{ add_tag(it, it[2]) }
-                    // Update meta with the name of table:
-                        .map{ update_meta(it, [table_name:it[2]]) }
+                    // Update meta with the name of stats:
+                        .map{ update_meta(it, [stats_name:it[2]]) }
                     // Multi-channel:
                         .multiMap{ it ->
                             table: [it[0], it[1]]
-                            columns: it[3]
+                            columns: it[3].filters
                         }
         TableStats = RESULTS_STATS( StatsInput ).table
 
@@ -518,24 +523,25 @@ workflow REDC {
 
         // Channel: [cool_name, params]
         CoolerList = Channel.fromList(
-                params.output.stats.collect{ k, v -> [k, v] }
+                params.output.cooler.collect{ k, v -> [k, v] }
         )
 
-        CoolerInput = TableDumped.combine(CoolerList)
+        CoolerInput = TableFinal.combine(CoolerList)
                     // Channel: [meta, file, cool_name, params]
+                    // Select only requested dumped table:
+                        .filter{ it[0].table_name == it[3].table_name }
                     // Add tag with stats name:
                         .map{ add_tag(it, it[2]) }
                     // Update meta with parameters:
+                        .map{ update_meta(it, it[3]) }
                         .map{ update_meta(it, params) }
-                    // Select only requested dumped table:
-                        .filter{ it[3].table_name == it[4].table_name }
                     // Combine with chromosome sizes:
                         .combine(ChromSizes)
                     // Channel: [meta, file, cool_name, params, chromsizes]
                     // Multi-channel:
                         .multiMap{ it ->
                             table: [it[0], it[1]]
-                            columns: it[4]
+                            chromsizes: it[4]
                         }
         Coolers = COOLER_MAKE( CoolerInput )
 

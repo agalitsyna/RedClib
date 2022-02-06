@@ -29,8 +29,9 @@ process COOLER_MAKE {
     def prefix   = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
 
     // Define the parameters. Pick from meta first, then check process options:
-    def assembly = meta.getOrDefault("assembly", options.getOrDefault("assembly", "assembly"))
-    def resolution = meta.getOrDefault("resolution", options.getOrDefault("resolution", 1000000))
+    def assembly = meta.getOrDefault("assembly", options.args.getOrDefault("assembly", "assembly"))
+    def resolution = meta.getOrDefault("resolution", options.args.getOrDefault("resolution", 1000000))
+
     // By default, we assume regular pairs file:
     def c1 = meta.getOrDefault("c1", options.getOrDefault("c1", 1))
     def c2 = meta.getOrDefault("c2", options.getOrDefault("c2", 2))
@@ -38,10 +39,12 @@ process COOLER_MAKE {
     def p2 = meta.getOrDefault("p2", options.getOrDefault("p2", 4))
 
     """
-    cooler makebins ${chromsizes} ${resolution} > ${assembly}.${resolution}.bins.txt
-    cooler cload pairs ${options.args} \
+    cooler makebins <(sed 's/ /\\t/g' ${chromsizes}) ${resolution} > ${assembly}.${resolution}.bins.txt
+    cooler cload pairs \
       -c1 ${c1} -c2 ${c2} \
       -p1 ${p1} -p2 ${p2} \
       ${assembly}.${resolution}.bins.txt <(tail -n +2 ${table}) "${prefix}.${assembly}.${resolution}.cool"
+
+    cooler --version > ${software}.version.txt
     """
 }
