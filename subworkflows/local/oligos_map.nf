@@ -8,7 +8,7 @@ include { RKLIB_SEQ2HASH as BIN_OLIGOS } from '../../modules/rklib/rk_seq2hash/m
 include { RKLIB_SEQ2HASH as BIN_FASTQ }  from '../../modules/rklib/rk_seq2hash/main' addParams( options: [args: [mode: 'fastq']] ) // Bin input fastq
 
 include { RKLIB_QUERYSEARCH as OLIGOS_ALIGN} from '../../modules/rklib/rk_querysearch/main' addParams( options: [args: [:]] ) // Align oligos
-include { RKLIB_CHECK_COMPLEMENTARY as OLIGOS_CHECK_COMPLEMENTARY } from '../../modules/rklib/rk_check_complementary/main' addParams( options: [args: [rna_complementary_length: 14]] ) // Align complementary fragments of RNA
+include { RKLIB_CHECK_COMPLEMENTARY as OLIGOS_CHECK_COMPLEMENTARY } from '../../modules/rklib/rk_check_complementary/main' addParams( options: [args: [:]] ) // Align complementary fragments of RNA
 
 include { RNADNATOOLS_READ_CHECK_NUCLEOTIDES as OLIGOS_CHECK_SHORT } from '../../modules/rnadnatools/read_check_nucleotides/main' addParams( options: [args: [:]] ) // Check oligos presence
 

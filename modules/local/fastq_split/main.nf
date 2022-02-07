@@ -34,7 +34,8 @@ process FASTQ_SPLIT {
     def software = getSoftwareName(task.process)
     def prefix   = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
 
-    def chunksize = options.args.getOrDefault('chunksize', 10000000000) // Practially no chunking by default
+    // By default we set large chunks that almost guarantee no chunking:
+    def chunksize = options.args.getOrDefault('chunksize', 10000000000)
 
     def input_fq1=reads[0]
     def readCmd = (isGZ(input_fq1.toString())) ?  "bgzip -dc -@ ${task.cpus}" : "cat"
