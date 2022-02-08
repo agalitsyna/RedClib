@@ -39,11 +39,14 @@ process FASTQ_SPLIT {
 
     def input_fq1=reads[0]
     def readCmd = (isGZ(input_fq1.toString())) ?  "bgzip -dc -@ ${task.cpus}" : "cat"
-    def Cmd = "${readCmd} ${input_fq1} | split -l ${chunksize} --numeric-suffixes=1 --additional-suffix='.1.fq' - ${prefix}.\n"
+
+    def Cmd = "${readCmd} ${input_fq1} | split -l ${chunksize} --numeric-suffixes=1 --additional-suffix='_1.fq' - ${prefix}.\n"
+
     if (!meta.single_end) {
         def input_fq2=reads[1]
-        Cmd += "${readCmd} ${input_fq2} | split -l ${chunksize} --numeric-suffixes=1 --additional-suffix='.2.fq' - ${prefix}."
+        Cmd += "${readCmd} ${input_fq2} | split -l ${chunksize} --numeric-suffixes=1 --additional-suffix='_2.fq' - ${prefix}."
     }
+
     """
     ${Cmd}
 

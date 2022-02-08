@@ -62,11 +62,11 @@ process FASTQ_EXTEND {
         """
         ${cmd_read_fastq} ${fastq_r1} | \\
             sed '2~4s/^\\(.*\\)\$/${replacement_prefix}\\1${replacement_suffix}/' | \\
-            sed '4~4s/^\\(.*\\)\$/${replacement_prefix_qual}\\1${replacement_suffix_qual}/' ${cmd_write_fastq} > ${prefix}.1.fq${format}
+            sed '4~4s/^\\(.*\\)\$/${replacement_prefix_qual}\\1${replacement_suffix_qual}/' ${cmd_write_fastq} > ${prefix}_1.fq${format}
 
         ${cmd_read_fastq} ${fastq_r2} | \\
             sed '2~4s/^\\(.*\\)\$/${replacement_prefix}\\1${replacement_suffix}/' | \\
-            sed '4~4s/^\\(.*\\)\$/${replacement_prefix_qual}\\1${replacement_suffix_qual}/' ${cmd_write_fastq} > ${prefix}.2.fq${format}
+            sed '4~4s/^\\(.*\\)\$/${replacement_prefix_qual}\\1${replacement_suffix_qual}/' ${cmd_write_fastq} > ${prefix}_2.fq${format}
 
         echo $VERSION > ${software}.version.txt
         """
