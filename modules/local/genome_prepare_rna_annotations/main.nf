@@ -46,7 +46,7 @@ process GENOME_PREPARE_RNA_ANNOTATIONS {
     }
     else {
         getRNAAnnot = """
-        cp ${genes_gtf} > ${rna_annot_name}${rna_annotation_suffix}.gtf${suffix}
+        cp ${genes_gtf} ${rna_annot_name}${rna_annotation_suffix}.gtf${suffix}
         """
     }
     def unpackRNAAnnot = ""

@@ -5,7 +5,7 @@
 params.options = [:]
 
 include { RKLIB_SEQ2HASH as BIN_OLIGOS } from '../../modules/rklib/rk_seq2hash/main' addParams( options: [args: [mode: 'fasta']] ) // Bin input oligos from fasta file
-include { RKLIB_SEQ2HASH as BIN_FASTQ }  from '../../modules/rklib/rk_seq2hash/main' addParams( options: [args: [mode: 'fastq']] ) // Bin input fastq
+include { RKLIB_SEQ2HASH as BIN_FASTQ }  from '../../modules/rklib/rk_seq2hash/main' addParams( options: [args: [mode: 'fastq', force_rlen: 120]] ) // Bin input fastq
 
 include { RKLIB_QUERYSEARCH as OLIGOS_ALIGN} from '../../modules/rklib/rk_querysearch/main' addParams( options: [args: [:]] ) // Align oligos
 include { RKLIB_CHECK_COMPLEMENTARY as OLIGOS_CHECK_COMPLEMENTARY } from '../../modules/rklib/rk_check_complementary/main' addParams( options: [args: [:]] ) // Align complementary fragments of RNA
