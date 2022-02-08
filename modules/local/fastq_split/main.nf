@@ -27,8 +27,8 @@ process FASTQ_SPLIT {
     tuple val(meta), path(reads)
 
     output:
-    tuple val(meta), path("*.1.fq"), path("*.2.fq"), emit: fastq
-    path  "*.version.txt"                                , emit: version
+    tuple val(meta), path("*.fq"), emit: fastq
+    path  "*.version.txt"        , emit: version
 
     script:
     def software = getSoftwareName(task.process)
@@ -37,14 +37,22 @@ process FASTQ_SPLIT {
     // By default we set large chunks that almost guarantee no chunking:
     def chunksize = options.args.getOrDefault('chunksize', 10000000000)
 
-    def input_fq1=reads[0]
-    def readCmd = (isGZ(input_fq1.toString())) ?  "bgzip -dc -@ ${task.cpus}" : "cat"
+    def Cmd = ""
 
-    def Cmd = "${readCmd} ${input_fq1} | split -l ${chunksize} --numeric-suffixes=1 --additional-suffix='_1.fq' - ${prefix}.\n"
+    if (meta.single_end) {
 
-    if (!meta.single_end) {
+        def input_fq1 = reads
+        def readCmd = (isGZ(input_fq1.toString())) ?  "bgzip -dc -@ ${task.cpus}" : "cat"
+        Cmd = "${readCmd} ${input_fq1} | split -l ${chunksize} --numeric-suffixes=1 --additional-suffix='_1.fq' - ${prefix}."
+
+    } else {
+
+        def input_fq1 = reads[0]
         def input_fq2=reads[1]
+        def readCmd = (isGZ(input_fq1.toString())) ?  "bgzip -dc -@ ${task.cpus}" : "cat"
+        Cmd = "${readCmd} ${input_fq1} | split -l ${chunksize} --numeric-suffixes=1 --additional-suffix='_1.fq' - ${prefix}.\n"
         Cmd += "${readCmd} ${input_fq2} | split -l ${chunksize} --numeric-suffixes=1 --additional-suffix='_2.fq' - ${prefix}."
+
     }
 
     """

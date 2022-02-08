@@ -100,9 +100,9 @@ process FASTQ_DOWNLOAD {
             }
 
             """
-            ${fastqdumpCmd1} | bgzip -c -@${task.cpus} > ${prefix}_1.fastq.gz)
+            ${fastqdumpCmd1} | bgzip -c -@${task.cpus} > ${prefix}_1.fastq.gz
 
-            ${fastqdumpCmd2} | bgzip -c -@${task.cpus} > ${prefix}_2.fastq.gz)
+            ${fastqdumpCmd2} | bgzip -c -@${task.cpus} > ${prefix}_2.fastq.gz
 
             fastq-dump -V >> ${software}.version.txt
             """

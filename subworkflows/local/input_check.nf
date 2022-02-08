@@ -65,12 +65,15 @@ def create_fastq_channels( it ) {
     def files = it[1]
 
     def array = []
-    if (!file(files[0]).exists()) {
-        exit 1, "ERROR: Please check input samplesheet -> Read 1 FastQ file does not exist!\n${files[0]}"
-    }
     if (meta.single_end) {
-        array = [ meta, [ file(files[0]) ] ]
+        if (!file(files).exists()) {
+            exit 1, "ERROR: Please check input samplesheet -> Read 1 FastQ file does not exist!\n${files[0]}"
+        }
+        array = [ meta, [ file(files) ] ]
     } else {
+        if (!file(files[0]).exists()) {
+            exit 1, "ERROR: Please check input samplesheet -> Read 1 FastQ file does not exist!\n${files[0]}"
+        }
         if (!file(files[1]).exists()) {
             exit 1, "ERROR: Please check input samplesheet -> Read 2 FastQ file does not exist!\n${files[1]}"
         }
