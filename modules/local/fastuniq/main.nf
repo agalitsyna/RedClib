@@ -36,6 +36,7 @@ process FASTUNIQ {
         """
         # Create input file for fastuniq
         echo ${fastq_r1} >  filelist.txt
+        echo ${fastq_r1} >>  filelist.txt
 
         # Run fastuniq
         fastuniq -i filelist.txt -tq -c 0 -o ${prefix}.1.unique.fq
