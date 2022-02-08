@@ -1,5 +1,6 @@
-input: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/samplesheet.csv' # required
+input: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/samplesheet_redc.csv' # required
 cache: 'lenient'
+outdir: "output_redc/"
 
 genome:
     assembly: 'hg38' # required
@@ -18,7 +19,7 @@ genome:
 
 
 protocol:
-    chunksize: 100000
+    chunksize: 1000000
     check_restriction: true
     renzymes:
         - DpnII
