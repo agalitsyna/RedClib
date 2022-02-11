@@ -18,7 +18,7 @@ workflow INPUT_SPLIT {
             fastq
         ).fastq
 
-        fastq_chunks = chunks.transpose()
+        fastq_chunks = chunks
             .map{ update_meta(it) }
 
     emit:
@@ -50,19 +50,21 @@ def update_meta( it ) {
     for( def key in keys ) {
         meta[key] = it[0][key]
     }
-    def file1 = it[1]
+    def file1 = ""
     def file2 = ""
     def chunk_index = ""
 
     if (meta.single_end) {
+        file1 = it[1]
         chunk_index = parseChunkSingle(file1)
     } else {
-        file2 = it[2]
+        file1 = it[1][0]
+        file2 = it[1][1]
         chunk_index = parseChunkPair(file1, file2)
     }
 
     meta.original_id = meta.id
-    meta.id          = meta.id + "_" + chunk_index
+    meta.id          = meta.id + "." + chunk_index
     meta.chunk       = chunk_index
 
     def array = []
