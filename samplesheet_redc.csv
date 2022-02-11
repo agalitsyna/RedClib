@@ -1,9 +1,9 @@
 sample,group,fastq_1,fastq_2,rlen,single_end
-K562_rep1,K562,sra:SRR10010328,,80,false
-K562_rep1_wo-ligase_Red-C,K562_no-ligase,sra:SRR10010327,,125,false
-K562_rep1_add,K562,sra:SRR10010326,,101,false
-K562_rep1_rnase_Red-C,K562_rnase,sra:SRR10010329,,80,false
-K562_rep2,K562,sra:SRR10010330,,125,false
-Fibr_rep1,Fibr,sra:SRR10010324,,125,false
-Fibr_rep1_add,Fibr,sra:SRR10010323,,133,false
-Fibr_rep2,Fibr,sra:SRR10010325,,125,false
+K562_rep1,K562,sra:SRR10010328:start=0&end=10000,,80,false
+K562_rep1_wo-ligase_Red-C,K562_no-ligase,sra:SRR10010327:start=0&end=10000,,125,false
+K562_rep1_add,K562,sra:SRR10010326:start=0&end=10000,,101,false
+K562_rep1_rnase_Red-C,K562_rnase,sra:SRR10010329:start=0&end=10000,,80,false
+K562_rep2,K562,sra:SRR10010330:start=0&end=10000,,125,false
+Fibr_rep1,Fibr,sra:SRR10010324:start=0&end=10000,,125,false
+Fibr_rep1_add,Fibr,sra:SRR10010323:start=0&end=10000,,133,false
+Fibr_rep2,Fibr,sra:SRR10010325:start=0&end=10000,,125,false

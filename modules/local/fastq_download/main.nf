@@ -43,7 +43,7 @@ process FASTQ_DOWNLOAD {
         }
 
         """
-        ${fastqdumpCmd} | bgzip -c -@${task.cpus} > ${prefix}.fastq.gz)
+        ${fastqdumpCmd} | bgzip -c -@${task.cpus} > ${prefix}.1.fastq.gz)
 
         fastq-dump -V >> ${software}.version.txt
         """
@@ -66,8 +66,8 @@ process FASTQ_DOWNLOAD {
 
             """
             ${fastqdumpCmd} | pyfilesplit --lines 4 \
-                             >(bgzip -c -@${task.cpus} > ${prefix}_1.fastq.gz) \
-                             >(bgzip -c -@${task.cpus} > ${prefix}_2.fastq.gz) \
+                             >(bgzip -c -@${task.cpus} > ${prefix}.1.fastq.gz) \
+                             >(bgzip -c -@${task.cpus} > ${prefix}.2.fastq.gz) \
                              | cat
 
             fastq-dump -V >> ${software}.version.txt
@@ -100,9 +100,9 @@ process FASTQ_DOWNLOAD {
             }
 
             """
-            ${fastqdumpCmd1} | bgzip -c -@${task.cpus} > ${prefix}_1.fastq.gz
+            ${fastqdumpCmd1} | bgzip -c -@${task.cpus} > ${prefix}.1.fastq.gz
 
-            ${fastqdumpCmd2} | bgzip -c -@${task.cpus} > ${prefix}_2.fastq.gz
+            ${fastqdumpCmd2} | bgzip -c -@${task.cpus} > ${prefix}.2.fastq.gz
 
             fastq-dump -V >> ${software}.version.txt
             """
