@@ -1,0 +1,24 @@
+name: rnadnapipeline
+channels:
+  - bioconda
+  - anaconda
+dependencies:
+  - fastqc=0.11.9
+  - bedtools=2.30
+  - samtools=1.14
+  - cooler=0.8.11
+  - python=3.7
+  - sra-tools=2.8.0
+  - tabix=1.11
+  - coreutils=8.31
+  - fastuniq=1.1
+  - gawk=5.1.0
+  - hisat2=2.2.1
+  - pyfaidx=0.5.9.5
+  - trimmomatic=0.39
+  - sra-tools=2.8.0
+  - pip
+  - git
+  - pip:
+    - git+https://github.com/agalitsyna/rnadnatools
+    - git+https://github.com/open2c/pyfilesplit

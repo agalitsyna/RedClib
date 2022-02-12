@@ -4,10 +4,11 @@ Red-C nextflow pipeline (DSL2 version)
 Introduction
 ------------
 
-Welcome to Red-C RNA-DNA interactome mapping with [nextflow](https://www.nextflow.io/), DSL2 version.
+Welcome to Red-C RNA-DNA interactome mapping with `nextflow <https://www.nextflow.io/>`_, DSL2 version.
 
 Red-C is a method for genome-wide detection of RNA-DNA interactions in chromatin.
-The details are in our [NAR paper](https://doi.org/10.1093/nar/gkaa457) from 09 July, 2020:
+The details are in our `NAR paper
+<https://doi.org/10.1093/nar/gkaa457/>`_ from 09 July, 2020:
 
     Gavrilov, A.A., Zharikova, A.A., Galitsyna, A.A., Luzhin, A.V., Rubanova, N.M., Golov, A.K.,
     Petrova, N.V., Logacheva, M.D., Kantidze, O.L., Ulianov, S.V., Magnitov, M.D., Mironov, A.A., and Razin S.V. 2020.
@@ -21,7 +22,7 @@ Here we develop a DSL2 version of the pipeline that will be easy to adapt to cus
 
 Disclaimer: DSL2 version is not complete yet!
 
-System requirements
+System requirements and test run
 -------------------
 
 1. You need a system supporting nextflow pipelines. For example, you can create conda environment with nextflow, 
@@ -48,6 +49,21 @@ different environments constructed along the run).
 You may want to check that the results in the `output/` folder. 
 
 In the future, we plan to add a small test that will allow you to validate the installation and run on a test dataset. 
+
+Disable nextflow's conda
+------------------------
+
+Sometimes nextflow's conda management is unsatisfactory (e.g. installation of environments takes too long for each run).
+In that case, you might install all the requirements locally and disable conda in the config.
+For that:
+
+1. Make sure you have installed all the dependencies from the `environment.yml` file (main repository).
+
+2. Change the line in the params file from `true` to `false`: ::
+
+    enable_conda: false
+
+
 
 Full run of the pipeline
 ------------------------

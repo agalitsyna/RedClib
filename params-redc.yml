@@ -1,6 +1,7 @@
 input: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/samplesheet_redc.csv' # required
 cache: 'lenient'
 outdir: "output_redc/"
+enable_conda: false
 
 genome:
     assembly: 'hg38' # required
