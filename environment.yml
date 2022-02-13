@@ -1,6 +1,7 @@
 name: rnadnapipeline
 channels:
   - bioconda
+  - conda-forge
   - anaconda
 dependencies:
   - fastqc=0.11.9
