@@ -1,4 +1,4 @@
-input: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/samplesheet_test.csv' # required
+input: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/samplesheet_redc.csv' # required
 cache: 'lenient'
 outdir: "output_redc/"
 enable_conda: false
