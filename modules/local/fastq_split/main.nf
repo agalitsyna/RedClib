@@ -27,7 +27,8 @@ process FASTQ_SPLIT {
     tuple val(meta), path(reads)
 
     output:
-    tuple val(meta), path("*.fq"), emit: fastq
+    tuple val(meta), path("*.1.fq"), emit: fastq_r1
+    tuple val(meta), path("*.2.fq"), emit: fastq_r2, optional: true
     path  "*.version.txt"        , emit: version
 
     script:

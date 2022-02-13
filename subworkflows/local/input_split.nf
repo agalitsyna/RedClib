@@ -4,7 +4,7 @@
 
 params.options = [:]
 
-def chunksize = params.options.getOrDefault('chunksize', 100000000000)*4
+def chunksize = params.options.get('chunksize', 100000000000)*4
 
 include { FASTQ_SPLIT } from '../../modules/local/fastq_split/main' addParams( options: [args: [chunksize : chunksize]], outdir: "${params.outdir}" )
 
@@ -14,11 +14,14 @@ workflow INPUT_SPLIT {
 
     main:
 
-        chunks = FASTQ_SPLIT (
+        chunks_split = FASTQ_SPLIT (
             fastq
-        ).fastq
+        )
+        chunks = chunks_split.fastq_r1.join(
+                 chunks_split.fastq_r2,
+                 by:0)
 
-        fastq_chunks = chunks
+        fastq_chunks = chunks.transpose()
             .map{ update_meta(it) }
 
     emit:
@@ -50,16 +53,14 @@ def update_meta( it ) {
     for( def key in keys ) {
         meta[key] = it[0][key]
     }
-    def file1 = ""
+    def file1 = it[1]
     def file2 = ""
     def chunk_index = ""
 
     if (meta.single_end) {
-        file1 = it[1]
         chunk_index = parseChunkSingle(file1)
     } else {
-        file1 = it[1][0]
-        file2 = it[1][1]
+        file2 = it[2]
         chunk_index = parseChunkPair(file1, file2)
     }
 

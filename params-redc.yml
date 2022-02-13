@@ -21,7 +21,7 @@ genome:
 
 
 protocol:
-    chunksize: 1000000
+    chunksize: 5000000
     check_restriction: true
     renzymes:
         - DpnII
