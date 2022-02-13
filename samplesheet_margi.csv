@@ -1,2 +1,5 @@
 sample,group,fastq_1,fastq_2,rlen,single_end
 H9_diMARGI_rep1_2_test,H9_diMARGI_test,/mnt/lustre/agalicina/soft/sandbox/RedClib_margi/output_margi/fastqdownload/H9_diMARGI_rep1_2_1.fastq.gz,/mnt/lustre/agalicina/soft/sandbox/RedClib_margi/output_margi/fastqdownload/H9_diMARGI_rep1_2_2.fastq.gz,120,false
+H9_pxMARGI_rep1_1,H9_pxMARGI,sra:SRR5278094,,200,false
+HEK_pxMARGI_rep1_1,HEK_pxMARGI,sra:SRR5278099,,200,false
+HEK_pxMARGI_rep2_1,HEK_pxMARGI,sra:SRR5278101,,200,false

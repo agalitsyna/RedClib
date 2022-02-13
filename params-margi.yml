@@ -250,8 +250,9 @@ output:
                 - V8a
 
         sp: # name of the stats file
-            table_name: resulting_table2 # use this initial table (filters is all evaluated filters)
+            table_name: filters # use this initial table (filters is all evaluated filters)
             filters:
+                - V0
                 - r1_has_sp1
                 - r1_has_sp2_rev
                 - r2_has_sp2
