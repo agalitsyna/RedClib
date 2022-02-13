@@ -43,7 +43,7 @@ process FASTQ_DOWNLOAD {
         }
 
         """
-        ${fastqdumpCmd} | bgzip -c -@${task.cpus} > ${prefix}.1.fastq.gz)
+        ${fastqdumpCmd} | bgzip -c -@${task.cpus} > ${prefix}.1.fastq.gz
 
         fastq-dump -V >> ${software}.version.txt
         """

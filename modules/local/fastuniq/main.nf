@@ -39,10 +39,10 @@ process FASTUNIQ {
         echo ${fastq_r1} >>  filelist.txt
 
         # Run fastuniq
-        fastuniq -i filelist.txt -tq -c 0 -o ${prefix}.1.unique.fq
+        fastuniq -i filelist.txt -tp -c 0 -o ${prefix}.1.unique.fq
 
         # Parse fastuniq output
-        awk 'NR%4==1' ${prefix}.1.unique.fq | gawk '{match(\$0, "@([^ ,/]+)", a)} {print a[1]}' | sed "s/ /\\t/g" \
+        awk 'NR%4==1' ${prefix}.1.unique.fq | gawk '{match(\$1, "[@,>]([^ ,/]+)", a)} {print a[1], 1}' | sed "s/ /\\t/g" \
             > ${prefix}.nodup.txt
 
         echo $VERSION > ${software}.version.txt
@@ -59,7 +59,7 @@ process FASTUNIQ {
         fastuniq -i filelist.txt -tq -c 0 -o ${prefix}.1.unique.fq -p ${prefix}.2.unique.fq
 
         # Parse fastuniq output
-        awk 'NR%4==1' ${prefix}.1.unique.fq | gawk '{match(\$0, "@([^ ,/]+)", a)} {print a[1], 1}' | sed "s/ /\\t/g" \
+        awk 'NR%4==1' ${prefix}.1.unique.fq | gawk '{match(\$1, "[@,>]([^ ,/]+)", a)} {print a[1], 1}' | sed "s/ /\\t/g" \
             > ${prefix}.nodup.txt
 
         echo $VERSION > ${software}.version.txt

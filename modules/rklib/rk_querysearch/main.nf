@@ -38,7 +38,7 @@ process RKLIB_QUERYSEARCH {
 
     if (meta.single_end) {
         """
-        rk_querysearch ${bin_oligos} ${bin_reads[0]} ${oligo_length} ${read_length} \
+        rk_querysearch ${bin_oligos} ${bin_reads} ${oligo_length} ${read_length} \
             ${meta_oligos.n_oligos} ${left_allowed_shift} ${right_allowed_shift} \\
             ${meta_oligos.mismatches_allowed} ${right_to_left} \\
             > ${prefix}.tsv

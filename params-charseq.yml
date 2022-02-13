@@ -113,14 +113,6 @@ short_oligos:
 #        position: 0
 #        side: 2
 
-complementary:
-    length: 14
-    left_side: 1
-    left_reference_oligo: bridge_forward
-    right_side: 2
-    right_reference_oligo: ggg
-
-
 fragments:
 #    dna_noext:
 #        side: 1 # forward or reverse

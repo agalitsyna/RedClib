@@ -66,6 +66,8 @@ include { RNADNATOOLS_TABLE_ALIGN as TABLE_DEDUP_ALIGN } from './modules/rnadnat
                                                              input_format: 'tsv',
                                                              ref_format: 'parquet',
                                                              output_format: 'parquet',
+                                                             chunksize: 10000000,
+                                                             chunksize_writer: 100000,
                                                              params: '--no-input-header --key-column 0 --ref-colname readID \
                                                              --fill-values ".",0 --drop-key --new-colnames readID,isUnique'
                                                             ], suffix:'.fastuniq'] )
@@ -102,8 +104,12 @@ include { FASTQ_EXTEND } from './modules/local/fastq_extend/main' addParams( opt
 include { HISAT2_ALIGN } from './modules/local/hisat2/main' addParams( options: [args: [:]] )
 include { BAM2BED } from './modules/local/bam2bed/main' addParams( options: [args: [extraTags: ['NH', 'XM'], samFilter: '']])
 
-include { RNADNATOOLS_SEGMENT_GETCLOSEST as BED_ANNOTATE_RESTRICTION } from './modules/rnadnatools/segment_getclosest/main'  addParams( options: [args: [
-                                                             output_format: 'parquet'
+include { RNADNATOOLS_SEGMENT_GETCLOSEST as TABLE_ANNOTATE_RESTRICTION } from './modules/rnadnatools/segment_getclosest/main'  addParams( options: [args: [
+                                                             input_format: 'parquet',
+                                                             reference_format: 'tsv',
+                                                             output_format: 'parquet',
+                                                             params: '--key-columns chrom,start,end --ref-columns 0,1,5 --no-ref-header',
+                                                             chunksize: 1000000
                                                              ]] )
 
 include { RNADNATOOLS_TABLE_EVALUATE as TABLE_EVALUATE_FILTERS } from './modules/rnadnatools/table_evaluate/main'  addParams( options: [
@@ -118,6 +124,8 @@ include { RNADNATOOLS_TABLE_ALIGN as TABLE_BED } from './modules/rnadnatools/tab
                                                              input_format: 'tsv',
                                                              ref_format: 'parquet',
                                                              output_format: 'parquet',
+                                                             chunksize: 10000000,
+                                                             chunksize_writer: 100000,
                                                              params: '--no-input-header --fill-values .,-1,-1,.,0,.,.,-1,-1 \
                                                              --new-colnames chrom,start,end,readID,mapq,strand,cigar,nMultiMap,nSub \
                                                              --key-column 3 --ref-colname readID'
@@ -241,24 +249,24 @@ workflow CHARSEQ {
                                     }
     // Merge all the tables in a single file for each sample/chunk:
     MergedTable = TABLE_MERGE( TablesGroupedInput ).table
-//
-//    // Convert the table file format for better storage/operations:
-//    Table = TABLE_CONVERT( MergedTable ).table
-//
-//    /* Deduplicate input sequences */
-//
-//    // Run subworkflow that trims first basepairs of reads and runs fastuniq on them:
-//    FastuniqOut = TABLE_DEDUP( Fastq )
-//
-//    // Align deduplicated reads with read table
-//    // (we want to guarantee the same order of reads in each table):
-//    DedupAlignInput = Table.combine(FastuniqOut).filter{ it[0].original_id==it[2].id }
-//                                .multiMap{ it ->
-//                                    reference: [ it[0], it[3] ]
-//                                    table: [ it[0], it[1] ]
-//                                }
-//    TableDedup = TABLE_DEDUP_ALIGN( DedupAlignInput ).table.map{ removeKeys(it, dedupKeys) }
-//
+
+    // Convert the table file format for better storage/operations:
+    Table = TABLE_CONVERT( MergedTable ).table
+
+    /* Deduplicate input sequences */
+
+    // Run subworkflow that trims first basepairs of reads and runs fastuniq on them:
+    FastuniqOut = TABLE_DEDUP( Fastq )
+
+    // Align deduplicated reads with read table
+    // (we want to guarantee the same order of reads in each table):
+    DedupAlignInput = Table.combine(FastuniqOut).filter{ it[0].original_id==it[2].id }
+                                .multiMap{ it ->
+                                    reference: [ it[0], it[3] ]
+                                    table: [ it[0], it[1] ]
+                                }
+    TableDedup = TABLE_DEDUP_ALIGN( DedupAlignInput ).table.map{ removeKeys(it, dedupKeys) }
+
 //    /* Collect fragment columns data. */
 //    // params.fragments has the list of new columns with expressions that will be evaluated for each fragment
 //    // Take params.fragments and collect columns:
@@ -314,7 +322,7 @@ workflow CHARSEQ {
 //    FragmentsFastqExtended = FASTQ_EXTEND( FragmentsFastqPreExtend.forExtend ).fastq
 //    // Mix channels with and without extension into a single channel:
 //    FragmentsFastq = FragmentsFastqPreExtend.noExtend.mix(FragmentsFastqExtended)
-//
+
 //    /* Map the fragments */
 //    // Combine fragments with splicesites and index to make the operation deterministic (enables -resume)
 //    Hisat2Input = FragmentsFastq.combine(SpliceSites).combine(Hisat2Index)

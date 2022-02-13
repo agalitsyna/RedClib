@@ -134,27 +134,18 @@ workflow OLIGOS_MAP {
 }
 
 def update_meta( it, hashMap ) {
+/* Update the meta hashMap. Takes channel of structure [meta, ..data..]. */
     def meta = [:]
-    keys = it[0].keySet() as String[]
-    for( key in keys ) {
+    def keys = it[0].keySet() as String[]
+    for( def key in keys ) {
         meta[key] = it[0][key]
     }
-    def file1 = it[1][0]
-    def file2 = ""
 
-    if (!meta.single_end) {
-        file2 = it[1][1]
-    }
-
-    keys_new = hashMap.keySet() as String[]
-    for( key in keys_new ) {
+    def keys_new = hashMap.keySet() as String[]
+    for( def key in keys_new ) {
         meta[key] = hashMap[key]
     }
 
-   if (meta.single_end) {
-        array = [ meta, [ file(file1) ] ]
-    } else {
-        array = [ meta, [ file(file1), file(file2) ] ]
-    }
+    def array = [ meta, *it[1..-1] ]
     return array
 }
