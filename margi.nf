@@ -66,6 +66,8 @@ include { RNADNATOOLS_TABLE_ALIGN as TABLE_DEDUP_ALIGN } from './modules/rnadnat
                                                              input_format: 'tsv',
                                                              ref_format: 'parquet',
                                                              output_format: 'parquet',
+                                                             chunksize: 10000000,
+                                                             chunksize_writer: 100000,
                                                              params: '--no-input-header --key-column 0 --ref-colname readID \
                                                              --fill-values ".",0 --drop-key --new-colnames readID,isUnique'
                                                             ], suffix:'.fastuniq'] )
@@ -102,8 +104,12 @@ include { FASTQ_EXTEND } from './modules/local/fastq_extend/main' addParams( opt
 include { HISAT2_ALIGN } from './modules/local/hisat2/main' addParams( options: [args: [:]] )
 include { BAM2BED } from './modules/local/bam2bed/main' addParams( options: [args: [extraTags: ['NH', 'XM'], samFilter: '']])
 
-include { RNADNATOOLS_SEGMENT_GETCLOSEST as BED_ANNOTATE_RESTRICTION } from './modules/rnadnatools/segment_getclosest/main'  addParams( options: [args: [
-                                                             output_format: 'parquet'
+include { RNADNATOOLS_SEGMENT_GETCLOSEST as TABLE_ANNOTATE_RESTRICTION } from './modules/rnadnatools/segment_getclosest/main'  addParams( options: [args: [
+                                                             input_format: 'parquet',
+                                                             reference_format: 'tsv',
+                                                             output_format: 'parquet',
+                                                             params: '--key-columns chrom,start,end --ref-columns 0,1,5 --no-ref-header',
+                                                             chunksize: 1000000
                                                              ]] )
 
 include { RNADNATOOLS_TABLE_EVALUATE as TABLE_EVALUATE_FILTERS } from './modules/rnadnatools/table_evaluate/main'  addParams( options: [
@@ -118,6 +124,8 @@ include { RNADNATOOLS_TABLE_ALIGN as TABLE_BED } from './modules/rnadnatools/tab
                                                              input_format: 'tsv',
                                                              ref_format: 'parquet',
                                                              output_format: 'parquet',
+                                                             chunksize: 10000000,
+                                                             chunksize_writer: 100000,
                                                              params: '--no-input-header --fill-values .,-1,-1,.,0,.,.,-1,-1 \
                                                              --new-colnames chrom,start,end,readID,mapq,strand,cigar,nMultiMap,nSub \
                                                              --key-column 3 --ref-colname readID'
@@ -366,7 +374,7 @@ workflow MARGI {
     // Restriction annotation takes BED file, reads table and renzyme file as input
     // and for each fragment reports the closest restriction recognition sites (on the left and on the right).
     // First, create formatted input for the BED_ANNOTATE_RESTRICTION process:
-    BedExpanded = Bed
+    TableBedExpanded = TableBedFragments
                     // Filter out non-restricted fragments:
                         .filter{ it[0].getOrDefault('restriction', '') }
                     // Emit for each restriction enzyme and orientation:
@@ -376,20 +384,17 @@ workflow MARGI {
                     // Update id to include restriction enzyme:
                         .map { add_tag(it, it[0].restriction.join()) }
 
-    TableRestrictionInput = BedExpanded.combine( Table ).combine( RestrictedChannel )
-                    // Channel: meta_bed, bed, meta_table, table, meta_restr, restr
-                    // Take bed and table the same sample/chunk:
-                        .filter{ it -> tagless(it[0].id, 2) == it[2].id }
+    TableRestrictionInput = TableBedExpanded.combine( RestrictedChannel )
+                    // Channel: meta_bed, bed, meta_restr, restr
                     // Take renzyme annotation for the same renzyme and strand orientation:
-                        .filter{ it -> it[0].restriction == [it[4].renzyme, it[4].renz_strand] }
+                        .filter{ it -> it[0].restriction == [it[2].renzyme, it[2].renz_strand] }
                     // Multi-channel:
                         .multiMap{ it ->
                             bed: [it[0], it[1]]
-                            table: [it[2], it[3]]
-                            restr: [it[4], it[5]]
+                            restr: [it[2], it[3]]
                         }
     // Annotate bed files by the sites of restriction recognition:
-    TableRestrictionFragments = BED_ANNOTATE_RESTRICTION( TableRestrictionInput ).table
+    TableRestrictionFragments = TABLE_ANNOTATE_RESTRICTION( TableRestrictionInput ).table
 
     // Merge restriction tables into a single one:
     TableRestrictionMergeInput = TableRestrictionFragments
