@@ -16,8 +16,7 @@ process RNADNATOOLS_SEGMENT_GETCLOSEST {
     conda (params.enable_conda ? "${moduleDir}/../environment.yml" : null)
 
     input:
-    tuple val(meta), path(bed)
-    tuple val(meta_table), path(table)
+    tuple val(meta), path(table)
     tuple val(meta_restr), path(restriction_sites)
 
     output:
@@ -36,7 +35,6 @@ process RNADNATOOLS_SEGMENT_GETCLOSEST {
     def renz_strand_sub = (renz_strand=="+") ? "+" : (renz_strand=="-") ? "-" : "b"
     def renz_shortname = "${renz_key}${renz_strand_key}"
     def columns = [
-        "readID_${segment_name}_${renz_shortname}",
         "${segment_name}_start_${renz_shortname}_left",
         "${segment_name}_start_${renz_shortname}_right",
         "${segment_name}_end_${renz_shortname}_left",
@@ -46,12 +44,14 @@ process RNADNATOOLS_SEGMENT_GETCLOSEST {
 
     """
     rnadnatools segment get-closest-sites \
-        -o ${prefix}.${renz_key}${renz_strand}.distances.${options.args.output_format} \
         --strand ${renz_strand_sub} \
-        --out-format ${options.args.output_format} \
-        --columns ${header} \
-        --align-ids parquet::${table}::readID \
-        ${bed} ${restriction_sites}
+        --output-columns ${header} \
+        -c ${options.args.chunksize} \
+        -i ${options.args.input_format} -r ${options.args.reference_format} -o ${options.args.output_format} \
+        ${options.args.params} \
+        ${table} \
+        ${restriction_sites} \
+        ${prefix}.${renz_key}${renz_strand}.distances.${options.args.output_format}
 
     python -c "import rnadnatools; print('rnadnatools', rnadnatools.__version__)" > ${software}.version.txt
     """

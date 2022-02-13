@@ -50,6 +50,33 @@ You may want to check that the results in the `output/` folder.
 
 In the future, we plan to add a small test that will allow you to validate the installation and run on a test dataset. 
 
+Full run of the pipeline
+------------------------
+
+To use RNA-DNA pipelines to your own data:
+
+1. Modify or create your own samplesheet: `samplesheet.csv`
+It requires columns with sample name, group name, address for fastq_1 and fastq_2,
+read length and indicator of single-end mode.
+
+2. Adapt runtime and number of processes in the config file: `conf/base.config`
+
+3. Modify the pipeline params file: `params-redc.yml`
+
+4. Full run: or simply run pipeline as: ::
+
+    nextflow run redc.nf -profile conda -params-file params-redc.yml
+
+**Note on multiple ways to control parameters with nextflow.**
+
+By default, only the parameters from `nextflow.config` are included.
+
+Next, `profile` directive is an additional level of parameters control for the
+pipeline (located, for example, here: `conf/base.config`).
+These parameters have higher priority and will override the default ones.
+
+Finally, the highest priority is for the parameters that you specify with `-params-file`.
+
 Disable nextflow's conda
 ------------------------
 
@@ -63,13 +90,9 @@ For that:
 
     enable_conda: false
 
+this is equivalent to adding `no_conda` profile: ::
 
-
-Full run of the pipeline
-------------------------
-
-To use RNA-DNA pipelines to your own data, consider modifying or creating your own samplesheet (`samplesheet.csv`),
-config file (`conf/test.config`) and parameters file (`params-redc.yml`).
+    nextflow run redc.nf -profile no_conda -params-file params-redc.yml
 
 
 Resume and other nextflow hints

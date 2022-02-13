@@ -1,11 +1,12 @@
-input: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/samplesheet_redc.csv' # required
+input: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/samplesheet_test.csv' # required
 cache: 'lenient'
 outdir: "output_redc/"
 enable_conda: false
 
 genome:
     assembly: 'hg38' # required
-    genes_gtf: 'http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_39/gencode.v39.chr_patch_hapl_scaff.annotation.gtf.gz' # required
+    #genes_gtf: 'http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_39/gencode.v39.chr_patch_hapl_scaff.annotation.gtf.gz' # required
+    genes_gtf: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/genome/hg38gencode.v39.gtf'
 
     auto_download_genome: false
     chromsizes: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/genome/hg38.reduced.chrom.sizes'
@@ -278,14 +279,14 @@ output:
             filter: 'V1'
             header: 'readID V9 R1 R2'
 
-    cooler: # Describe what to use for coolers (required):
-        default:
-            table_name: default
-            resolution: 1000000
-            c1: 2   # Column with chromosome name for RNA part
-            c2: 12  # Column with chromosome name for DNA part
-            p1: 3   # Column with start for RNA part
-            p2: 13  # Column with start for DNA part
+    #cooler: # Describe what to use for coolers (required):
+    #    default:
+    #        table_name: default
+    #        resolution: 1000000
+    #        c1: 2   # Column with chromosome name for RNA part
+    #        c2: 12  # Column with chromosome name for DNA part
+    #        p1: 3   # Column with start for RNA part
+    #        p2: 13  # Column with start for DNA part
 
     # Report the sum over the following columns:
     stats:
