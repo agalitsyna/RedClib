@@ -32,10 +32,23 @@ process RNADNATOOLS_TABLE_ALIGN {
     def prefix   = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
     def outfile   = "${prefix}.${options.args.output_format}"
 
+    def chunksize = options.args.getOrDefault('chunksize', 0)
+    def chunkOpt = ""
+//    if (chunksize) {
+//        chunkOpt = "--chunksize ${chunksize}"
+//    }
+    def chunksize_writer = options.args.getOrDefault('chunksize_writer', 0)
+    def chunkWriterOpt = ""
+//    if (chunksize_writer) {
+//        chunkWriterOpt = "--chunksize ${chunksize}"
+//    }
+
     """
     rnadnatools table align -i ${options.args.input_format} \
                             -r ${options.args.ref_format} \
                             -o ${options.args.output_format} \
+                            ${chunkOpt} \
+                            ${chunkWriterOpt} \
                             ${options.args.params} \
                             ${table} ${table_ref} ${outfile}
 
