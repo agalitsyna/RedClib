@@ -17,12 +17,15 @@ workflow INPUT_SPLIT {
         chunks_split = FASTQ_SPLIT (
             fastq
         )
-        chunks = chunks_split.fastq_r1.join(
-                 chunks_split.fastq_r2,
-                 by:0)
+        chunks = chunks_split.fastq_r1
+                    .map{ it -> update_meta(it, ['chunk':parseChunkSingle(it[1])]) }
+                    .combine(
+                        chunks_split.fastq_r2
+                            .map{ it -> update_meta(it, ['chunk':parseChunkSingle(it[1])]) },
+                        by:0)
 
         fastq_chunks = chunks.transpose()
-            .map{ update_meta(it) }
+            .map{ update_meta_chunk(it) }
 
     emit:
     fastq_chunks // channel: [ val(meta_updated), [ reads ] ]
@@ -47,7 +50,7 @@ String parseChunkSingle(file) {
 }
 
 // Update metadata:
-def update_meta( it ) {
+def update_meta_chunk( it ) {
     def meta = [:]
     def keys = it[0].keySet() as String[]
     for( def key in keys ) {
@@ -74,5 +77,22 @@ def update_meta( it ) {
     } else {
         array = [ meta, [ file(file1), file(file2) ] ]
     }
+    return array
+}
+
+def update_meta( it, hashMap ) {
+/* Update the meta hashMap. Takes channel of structure [meta, ..data..]. */
+    def meta = [:]
+    def keys = it[0].keySet() as String[]
+    for( def key in keys ) {
+        meta[key] = it[0][key]
+    }
+
+    def keys_new = hashMap.keySet() as String[]
+    for( def key in keys_new ) {
+        meta[key] = hashMap[key]
+    }
+
+    def array = [ meta, *it[1..-1] ]
     return array
 }
