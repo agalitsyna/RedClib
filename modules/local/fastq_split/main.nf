@@ -37,6 +37,7 @@ process FASTQ_SPLIT {
 
     // By default we set large chunks that almost guarantee no chunking:
     def chunksize = options.args.getOrDefault('chunksize', 10000000000)
+    def suffix_length = options.args.getOrDefault('suffix_length', 4)
 
     def Cmd = ""
 
@@ -44,15 +45,15 @@ process FASTQ_SPLIT {
 
         def input_fq1 = reads
         def readCmd = (isGZ(input_fq1.toString())) ?  "bgzip -dc -@ ${task.cpus}" : "cat"
-        Cmd = "${readCmd} ${input_fq1} | split -l ${chunksize} --numeric-suffixes=1 --additional-suffix='.1.fq' - ${prefix}."
+        Cmd = "${readCmd} ${input_fq1} | split -l ${chunksize} --suffix-length=${suffix_length} --numeric-suffixes=1 --additional-suffix='.1.fq' - ${prefix}."
 
     } else {
 
         def input_fq1 = reads[0]
         def input_fq2 = reads[1]
         def readCmd = (isGZ(input_fq1.toString())) ?  "bgzip -dc -@ ${task.cpus}" : "cat"
-        Cmd = "${readCmd} ${input_fq1} | split -l ${chunksize} --numeric-suffixes=1 --additional-suffix='.1.fq' - ${prefix}.\n"
-        Cmd += "${readCmd} ${input_fq2} | split -l ${chunksize} --numeric-suffixes=1 --additional-suffix='.2.fq' - ${prefix}."
+        Cmd = "${readCmd} ${input_fq1} | split -l ${chunksize} --suffix-length=${suffix_length} --numeric-suffixes=1 --additional-suffix='.1.fq' - ${prefix}.\n"
+        Cmd += "${readCmd} ${input_fq2} | split -l ${chunksize} --suffix-length=${suffix_length} --numeric-suffixes=1 --additional-suffix='.2.fq' - ${prefix}."
 
     }
 
