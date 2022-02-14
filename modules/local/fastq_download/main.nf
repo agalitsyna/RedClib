@@ -33,8 +33,8 @@ process FASTQ_DOWNLOAD {
 
         def fastqdumpCmd = ""
         def sra = ( sra_query=~ /SRR\d+/ )[0]
-        def start = ( sra_query.contains('start=') ) ? ( sra_query =~ /start=(\d+)/ )[0][1] : 0
-        def end   = ( sra_query.contains('end=') ) ? ( sra_query =~ /end=(\d+)/)[0][1] : 0
+        def start = ( sra_query.contains('start=') ) ? ( sra_query =~ /start=(\d+)/ )[0][1].toInteger() : 0
+        def end   = ( sra_query.contains('end=') ) ? ( sra_query =~ /end=(\d+)/)[0][1].toInteger() : 0
         if ((start>0) || (end>0)) {
             fastqdumpCmd += "fastq-dump ${sra} -Z --minSpotId ${start} --maxSpotId ${end}"
             }
@@ -55,8 +55,8 @@ process FASTQ_DOWNLOAD {
 
             def fastqdumpCmd = ""
             def sra = ( sra_query=~ /SRR\d+/ )[0]
-            def start = ( sra_query.contains('start=') ) ? ( sra_query =~ /start=(\d+)/ )[0][1] : 0
-            def end   = ( sra_query.contains('end=') ) ? ( sra_query =~ /end=(\d+)/)[0][1] : 0
+            def start = ( sra_query.contains('start=') ) ? ( sra_query =~ /start=(\d+)/ )[0][1].toInteger() : 0
+            def end   = ( sra_query.contains('end=') ) ? ( sra_query =~ /end=(\d+)/)[0][1].toInteger() : 0
             if ((start>0) || (end>0)) {
                 fastqdumpCmd += "fastq-dump ${sra} -Z --split-spot --minSpotId ${start} --maxSpotId ${end}"
                 }

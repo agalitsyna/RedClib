@@ -67,7 +67,7 @@ read length and indicator of single-end mode.
 
     nextflow run redc.nf -profile conda -params-file params-redc.yml
 
-**Note on multiple ways to control parameters with nextflow.**
+**Note on multiple ways to control parameters with nextflow:**
 
 By default, only the parameters from `nextflow.config` are included.
 
@@ -75,7 +75,12 @@ Next, `profile` directive is an additional level of parameters control for the
 pipeline (located, for example, here: `conf/base.config`).
 These parameters have higher priority and will override the default ones.
 
-Finally, the highest priority is for the parameters that you specify with `-params-file`.
+The highest priority is for the parameters that you specify with `-params-file`.
+
+Finally, you may override individual parameters in the command line, e.g.
+modify the output directory, chunk size and disable conda: ::
+
+    nextflow run redc.nf -profile test -params-file params-redc.yml --outdir output_test --protocol.chunksize 20000 --enable_conda false
 
 Disable nextflow's conda
 ------------------------
@@ -89,11 +94,6 @@ For that:
 2. Change the line in the params file from `true` to `false`: ::
 
     enable_conda: false
-
-this is equivalent to adding `no_conda` profile: ::
-
-    nextflow run redc.nf -profile no_conda -params-file params-redc.yml
-
 
 Resume and other nextflow hints
 -------------------------------
@@ -110,8 +110,13 @@ Resume and other nextflow hints
 
     nextflow clean -f
 
-5. Execution tracing. Nextflow allows [tracing and visualization of the execution](https://www.nextflow.io/docs/latest/tracing.html)
+5. Execution tracing and looking for bottlenecks. Nextflow allows `tracing and visualization of the execution <https://www.nextflow.io/docs/latest/tracing.html>`_
 of your pipeline: ::
 
     nextflow run redc.nf -profile test,conda,debug -with-dag flowchart.png -with-report report.html -with-timeline timeline.html
 
+
+Extended documentation
+----------------------
+
+- `Design principles of RNA-DNA pipelines <https://github.com/agalitsyna/RedClib/blob/redc-nextflow-dsl2/docs/principles.rst>`_

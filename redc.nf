@@ -151,7 +151,7 @@ include { RNADNATOOLS_TABLE_MERGE as TABLE_RESTRICTION_MERGE } from './modules/r
                                                              output_format: 'parquet'
                                                              ], suffix:'.restriction'] )
 
-include { RNADNATOOLS_TABLE_DUMP as RESULTS_DUMP } from './modules/rnadnatools/table_dump/main' addParams( options: [
+include { RNADNATOOLS_TABLE_DUMP as TABLE_DUMP } from './modules/rnadnatools/table_dump/main' addParams( options: [
                                                              args: [
                                                              input_format: 'parquet',
                                                              output_format: 'parquet'
@@ -479,7 +479,7 @@ workflow REDC {
                             filter: it[3]
                             columns: it[4]
                         }
-        TableDumpedChunked = RESULTS_DUMP( DumpInput ).table
+        TableDumpedChunked = TABLE_DUMP( DumpInput ).table
         TableChunked = TableDumpedChunked.mix( TableFinalChunked.map{ update_meta(it, [table_name:'filters']) } )
     }
     else {
@@ -496,7 +496,21 @@ workflow REDC {
                     .map{ update_meta(it, [id: it[0].original_id]) }
                     .map{ removeKeys(it, ['chunk']) }
 
-    TableFinal = RESULTS_STACK( TableStackChunksInput ).table
+    if (params.protocol.getOrDefault('merge_groups', false)) {
+        TableStackGroupInput = TableChunked.map{ it -> [[sample:it[0].group, table_name:it[0].table_name], [it[0], it[1]]] }
+                 // Group chunks and sort by chunk number:
+                     .groupTuple(by:0, sort:{it -> it[0].original_id})
+                 // Channel: [meta, [..tables..]] (tables were sorted by original_id)
+                     .map{id, it -> [it[0][0], it.transpose().collect()[1]]}
+                 // Replace id with original_id and remove chunk from meta:
+                    .map{ update_meta(it, [id: it[0].group+'.merged']) }
+                    .map{ removeKeys(it, ['chunk', 'original_id']) }
+        TableStackInput = TableStackChunksInput.mix(TableStackGroupInput)
+    } else {
+        TableStackInput = TableStackChunksInput
+    }
+
+    TableFinal = RESULTS_STACK( TableStackInput ).table
 
     if (params.output['stats']){
         /* Write table with stats */

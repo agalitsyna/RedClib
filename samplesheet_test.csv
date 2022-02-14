@@ -1,0 +1,4 @@
+sample,group,fastq_1,fastq_2,rlen,single_end
+Fibr_T1,Fibr,sra:SRR10010324:start=0&end=20000,,125,false
+Fibr_T2,Fibr,sra:SRR10010324:start=20001&end=40001,,125,false
+K562,K562,sra:SRR10010328:start=0&end=100000,,80,false
