@@ -267,285 +267,296 @@ workflow CHARSEQ {
                                 }
     TableDedup = TABLE_DEDUP_ALIGN( DedupAlignInput ).table.map{ removeKeys(it, dedupKeys) }
 
-//    /* Collect fragment columns data. */
-//    // params.fragments has the list of new columns with expressions that will be evaluated for each fragment
-//    // Take params.fragments and collect columns:
-//    def FragmentCollection = [:]
-//    for (fragment_name in params.fragments.keySet()){ // select all fragments
-//        fragment_params = params.fragments[fragment_name] // take the parameters for each fragment
-//        for( col in fragment_params.new_columns.keySet() ) { // add new columns to the list
-//            FragmentCollection[col] = fragment_params.new_columns[col]
-//        }
-//    }
-//
-//    // Create multichannel by combining table with collection of columns:
-//    TableFragmentsColumnsInput = Table.combine( Channel.from(FragmentCollection) )
-//                                .multiMap { meta, id, col ->
-//                                    table: [meta, id]
-//                                    filters: col
-//                                }
-//
-//    // Evaluate new columns for fragments:
-//    TableFragmentsColumns = TABLE_EVALUATE_FRAGMENTS( TableFragmentsColumnsInput ).table
-//
-//    /* Collect fragments data: */
-//    def FragmentData = params.fragments.collect {
-//            fragment, fragment_params -> [fragment: fragment, params:fragment_params]
-//            }
-//    FragmentsSelected = Table.combine( TableFragmentsColumns, by:0 ).combine( Channel.fromList(FragmentData) )
-//                        // We now have a combined channel with structure: meta, table1, table2, fragment.
-//                        // Re-structure this channel to [meta, files] and store fragment data in meta:
-//                            .map { meta, table1, table2, fragment -> update_meta(
-//                                    [meta, [table1, table2]],
-//                                        [fragment: fragment.fragment,
-//                                        side: fragment.params.side,
-//                                        single_end: true,
-//                                        selection_criteria: fragment.params.selection_criteria,
-//                                        ext_suffix: fragment.params.getOrDefault('extension_suffix', ''),
-//                                        ext_prefix: fragment.params.getOrDefault('extension_prefix', ''),
-//                                        mapping_args: fragment.params.mapping_args,
-//                                        restriction: fragment.params.getOrDefault('annotate_restriction', [['', '']])]
-//                                    ) }
-//                        // Tag it with the frag name (allows to recognize separate instances and have unique file names):
-//                            .map { add_tag(it, it[0].fragment) }
-//
-//    /* Extract FASTQs with fragments */
-//    FragmentsFastqPreExtend = FRAGMENTS_TO_FASTQ( FragmentsSelected ).fastq // Convert to fastq
-//                        // Split channels that will be extended with nucleotide suffix and prefix:
-//                            .branch { it ->
-//                                noExtend : (!(it[0].ext_suffix || it[0].ext_prefix))
-//                                    return update_meta( it, [extended:false] )
-//                                forExtend : (it[0].ext_suffix || it[0].ext_prefix)
-//                                    return update_meta( it, [extended:true] )
-//                                }
-//    // Extend the fragments for which extension was requested:
-//    FragmentsFastqExtended = FASTQ_EXTEND( FragmentsFastqPreExtend.forExtend ).fastq
-//    // Mix channels with and without extension into a single channel:
-//    FragmentsFastq = FragmentsFastqPreExtend.noExtend.mix(FragmentsFastqExtended)
+    /* Collect fragment columns data. */
+    // params.fragments has the list of new columns with expressions that will be evaluated for each fragment
+    // Take params.fragments and collect columns:
+    def FragmentCollection = [:]
+    for (fragment_name in params.fragments.keySet()){ // select all fragments
+        fragment_params = params.fragments[fragment_name] // take the parameters for each fragment
+        for( col in fragment_params.new_columns.keySet() ) { // add new columns to the list
+            FragmentCollection[col] = fragment_params.new_columns[col]
+        }
+    }
 
-//    /* Map the fragments */
-//    // Combine fragments with splicesites and index to make the operation deterministic (enables -resume)
-//    Hisat2Input = FragmentsFastq.combine(SpliceSites).combine(Hisat2Index)
-//                    // Channel structure: meta, fastq, splice_sites, ...index_files...
-//                        .multiMap{it ->
-//                             FragmentsFastq: [it[0], it[1]]
-//                             Hisat2Index: it[3..-1]
-//                             SpliceSites: it[2]
-//                        }
-//    // Align with hisat2:
-//    Bam = HISAT2_ALIGN ( Hisat2Input ).bam
-//
-//    /* Convert to BED */
-//    Bed = BAM2BED( Bam ).bed
-//
-//    /* Convert BED to table */
-//    // Bed file might have some reads missing or unordered.
-//    // Convert BED to table where the read order is guaranteed:
-//    TableBedInput = Bed.combine(Table)
-//                    // Combine input bed with input table by tagless ids:
-//                        .filter{ it -> tagless(it[0].id) == it[2].id }
-//                    // Channel structure: meta_bed, bed, meta_ref, ref
-//                        .multiMap{ it ->
-//                            bed: [it[0], it[1]]
-//                            table_ref: [it[2], it[3]]
-//                        }
-//    // Note that you can get an error "No columns to parse" if the reads were not mapped at all:
-//    TableBedFragments = TABLE_BED( TableBedInput ).table
-//
-//    TableBedMergeInput = TableBedFragments
-//                    // Remove rfrag tag from id and restructure the channel:
-//                        .map{ meta, table -> remove_tag([meta, [table, meta.fragment]]) }
-//                    // Remove any extra parameters of meta:
-//                        .map{ removeKeys(it, extraKeys) }
-//                    // groupTuple with sorting to guarantee deterministic output,
-//                    // note that size depends on the number of fragments:
-//                        .groupTuple(by:0, sort:{it->it[1]})
-//                        .map{meta, it -> [meta, it.transpose().collect()]}
-//                    // Create multi-channel:
-//                        .multiMap{ meta, it ->
-//                            table_bed: [meta, it[0]]
-//                            suffixes: it[1]
-//                        }
-//
-//    TableBed = TABLE_FRAGMENTS_MERGE( TableBedMergeInput ).table
-//
-//
-//    /* Annotate restriction */
-//    // Restriction annotation takes BED file, reads table and renzyme file as input
-//    // and for each fragment reports the closest restriction recognition sites (on the left and on the right).
-//    // First, create formatted input for the BED_ANNOTATE_RESTRICTION process:
-//    BedExpanded = Bed
-//                    // Filter out non-restricted fragments:
-//                        .filter{ it[0].getOrDefault('restriction', '') }
-//                    // Emit for each restriction enzyme and orientation:
-//                        .map{it -> [it[0], it[1], it[0].restriction] }.transpose(by:2)
-//                    // Update meta params:
-//                        .map{ meta, file, restriction -> update_meta( [meta, file], [restriction: restriction] ) }
-//                    // Update id to include restriction enzyme:
-//                        .map { add_tag(it, it[0].restriction.join()) }
-//
-//    TableRestrictionInput = BedExpanded.combine( Table ).combine( RestrictedChannel )
-//                    // Channel: meta_bed, bed, meta_table, table, meta_restr, restr
-//                    // Take bed and table the same sample/chunk:
-//                        .filter{ it -> tagless(it[0].id, 2) == it[2].id }
-//                    // Take renzyme annotation for the same renzyme and strand orientation:
-//                        .filter{ it -> it[0].restriction == [it[4].renzyme, it[4].renz_strand] }
-//                    // Multi-channel:
-//                        .multiMap{ it ->
-//                            bed: [it[0], it[1]]
-//                            table: [it[2], it[3]]
-//                            restr: [it[4], it[5]]
-//                        }
-//    // Annotate bed files by the sites of restriction recognition:
-//    TableRestrictionFragments = BED_ANNOTATE_RESTRICTION( TableRestrictionInput ).table
-//
-//    // Merge restriction tables into a single one:
-//    TableRestrictionMergeInput = TableRestrictionFragments
-//                    // Remove restriction tag:
-//                        .map{ remove_tag(it, 2) }
-//                    // Remove any extra parameters of meta:
-//                        .map{ removeKeys(it, extraKeys ) }
-//                    // Group by meta. Note that size depends on the number of fragments:
-//                        .groupTuple(by:0, sort:true)
-//                    // Combine with empty suffixes(required input for TABLE_RESTRICTION_MERGE).
-//                    // We don't have to add specific suffixes here, because fragments/renzymes
-//                    // are stored in the columns of individual tables:
-//                        .combine(Channel.from(''))
-//                    // Multi-channel:
-//                        .multiMap{ meta, files, suffixes ->
-//                            table_bed: [meta, files]
-//                            suffixes: suffixes
-//                        }
-//
-//    TableRestriction = TABLE_RESTRICTION_MERGE( TableRestrictionMergeInput ).table
-//
-//    /* Evaluation of final filters */
-//    /* Collect final tables */
-//    TablesCollected = Table.mix(TableBed)
-//                        .mix(TableRestriction)
-//                        .mix(TableDedup)
-//                        .mix(TableFragmentsColumns)
-//                    // Remove any extra parameters of meta:
-//                        .map{ removeKeys(it, extraKeys) }
-//                    // All channels have the same keys in meta, we can group by it.
-//                    // Channel: meta, [table, table_bed, table_dedup, table_fragments]
-//                    // (tables might be in some other order, sorting depends on full file names)
-//                        .groupTuple(by:0, sort:true)
-//
-//    /*  Collect final filters: */
-//    def FilterColumns = [:]
-//    for (filter_name in params.filters.keySet()){
-//        def filter_params = params.filters[filter_name]
-//        if (filter_params instanceof List) {
-//            filter_params = "(" + filter_params.join(") | (") + ")"
-//        }
-//        FilterColumns[filter_name] = filter_params
-//    }
-//
-//    /* Evaluate filters on collected tables: */
-//    TableEvaluateInput = TablesCollected.combine(Channel.from(FilterColumns))
-//                          .multiMap{ it ->
-//                                tables: [it[0], it[1]]
-//                                filters: it[2]
-//                          }
-//    TableFinalChunked = TABLE_EVALUATE_FILTERS( TableEvaluateInput ).table
-//
-//    /* Output tables */
-//    TableAllChunked = TablesCollected.combine(TableFinalChunked, by:0)
-//                        .map{it -> [it[0], it[1]+[it[2]]]}
-//
-//    if (params.output['tables']){
-//
-//        // Channel: [table_name, filter, [header_columns]]
-//        FilesCollection = Channel.fromList(
-//                params.output.tables.collect{ k, v -> [k, v['filter'], v['header'].split(" ")]}
-//            )
-//
-//        DumpInput = TableAllChunked.combine(FilesCollection)
-//                    // Channel: [meta, files, table_name, filter, [header_columns]]
-//                    // Add tag with table name:
-//                        .map{ add_tag(it, it[2]) }
-//                    // Add meta keys. Table_name is for identification of table type.
-//                    // Columns will guarantee the order in STACK:
-//                        .map{ update_meta(it, [table_name: it[2], columns:it[4]]) }
-//                    // Multi-channel:
-//                        .multiMap{ it ->
-//                            table: [it[0], it[1]]
-//                            filter: it[3]
-//                            columns: it[4]
-//                        }
-//        TableDumpedChunked = RESULTS_DUMP( DumpInput ).table
-//        TableChunked = TableDumpedChunked.mix( TableFinalChunked.map{ update_meta(it, [table_name:'filters']) } )
-//    }
-//    else {
-//        TableChunked = TableFinalChunked.map{ update_meta(it, [table_name:'filters']) }
-//    }
-//
-//    /* Merge final tables between replicates: */
-//    TableStackChunksInput = TableChunked.map{ it -> [[sample:it[0].original_id, table_name:it[0].table_name], [it[0], it[1]]] }
-//                 // Group chunks and sort by chunk number:
-//                     .groupTuple(by:0, sort:{it -> it[0].chunk})
-//                 // Channel: [meta, [..tables..]] (tables were sorted by chunk and table type)
-//                     .map{id, it -> [it[0][0], it.transpose().collect()[1]]}
-//                 // Replace id with original_id and remove chunk from meta:
-//                    .map{ update_meta(it, [id: it[0].original_id]) }
-//                    .map{ removeKeys(it, ['chunk']) }
-//
-//    TableFinal = RESULTS_STACK( TableStackChunksInput ).table
-//
-//    if (params.output['stats']){
-//        /* Write table with stats */
-//
-//        // Channel: [stats_name, [header_columns]]
-//        StatsList = Channel.fromList(
-//                params.output.stats.collect{ k, v -> [k, v] }
-//        )
-//
-//        StatsInput = TableFinal.combine(StatsList)
-//                    // Channel: [meta, file, stats_name, [cols]]
-//                    // Filter appropriate tables:
-//                        .filter{ it[0].table_name==it[3].table_name }
-//                    // Add tag with stats name:
-//                        .map{ add_tag(it, it[2]) }
-//                    // Update meta with the name of stats:
-//                        .map{ update_meta(it, [stats_name:it[2]]) }
-//                    // Multi-channel:
-//                        .multiMap{ it ->
-//                            table: [it[0], it[1]]
-//                            columns: it[3].filters
-//                        }
-//        TableStats = RESULTS_STATS( StatsInput ).table
-//
-//    }
-//
-//    if (params.output['tables'] && params.output['cooler']){
-//        /* Write coolers */
-//
-//        // Channel: [cool_name, params]
-//        CoolerList = Channel.fromList(
-//                params.output.cooler.collect{ k, v -> [k, v] }
-//        )
-//
-//        CoolerInput = TableFinal.combine(CoolerList)
-//                    // Channel: [meta, file, cool_name, params]
-//                    // Select only requested dumped table:
-//                        .filter{ it[0].table_name == it[3].table_name }
-//                    // Add tag with stats name:
-//                        .map{ add_tag(it, it[2]) }
-//                    // Update meta with parameters:
-//                        .map{ update_meta(it, it[3]) }
-//                        .map{ update_meta(it, params) }
-//                    // Combine with chromosome sizes:
-//                        .combine(ChromSizes)
-//                    // Channel: [meta, file, cool_name, params, chromsizes]
-//                    // Multi-channel:
-//                        .multiMap{ it ->
-//                            table: [it[0], it[1]]
-//                            chromsizes: it[4]
-//                        }
-//        Coolers = COOLER_MAKE( CoolerInput )
-//
-//    }
+    // Create multichannel by combining table with collection of columns:
+    TableFragmentsColumnsInput = Table.combine( Channel.from(FragmentCollection) )
+                                .multiMap { meta, id, col ->
+                                    table: [meta, id]
+                                    filters: col
+                                }
+
+    // Evaluate new columns for fragments:
+    TableFragmentsColumns = TABLE_EVALUATE_FRAGMENTS( TableFragmentsColumnsInput ).table
+
+    /* Collect fragments data: */
+    def FragmentData = params.fragments.collect {
+            fragment, fragment_params -> [fragment: fragment, params:fragment_params]
+            }
+    FragmentsSelected = Table.combine( TableFragmentsColumns, by:0 ).combine( Channel.fromList(FragmentData) )
+                        // We now have a combined channel with structure: meta, table1, table2, fragment.
+                        // Re-structure this channel to [meta, files] and store fragment data in meta:
+                            .map { meta, table1, table2, fragment -> update_meta(
+                                    [meta, [table1, table2]],
+                                        [fragment: fragment.fragment,
+                                        side: fragment.params.side,
+                                        single_end: true,
+                                        selection_criteria: fragment.params.selection_criteria,
+                                        ext_suffix: fragment.params.getOrDefault('extension_suffix', ''),
+                                        ext_prefix: fragment.params.getOrDefault('extension_prefix', ''),
+                                        mapping_args: fragment.params.mapping_args,
+                                        restriction: fragment.params.getOrDefault('annotate_restriction', [['', '']])]
+                                    ) }
+                        // Tag it with the frag name (allows to recognize separate instances and have unique file names):
+                            .map { add_tag(it, it[0].fragment) }
+
+    /* Extract FASTQs with fragments */
+    FragmentsFastqPreExtend = FRAGMENTS_TO_FASTQ( FragmentsSelected ).fastq // Convert to fastq
+                        // Split channels that will be extended with nucleotide suffix and prefix:
+                            .branch { it ->
+                                noExtend : (!(it[0].ext_suffix || it[0].ext_prefix))
+                                    return update_meta( it, [extended:false] )
+                                forExtend : (it[0].ext_suffix || it[0].ext_prefix)
+                                    return update_meta( it, [extended:true] )
+                                }
+    // Extend the fragments for which extension was requested:
+    FragmentsFastqExtended = FASTQ_EXTEND( FragmentsFastqPreExtend.forExtend ).fastq
+    // Mix channels with and without extension into a single channel:
+    FragmentsFastq = FragmentsFastqPreExtend.noExtend.mix(FragmentsFastqExtended)
+
+    /* Map the fragments */
+    // Combine fragments with splicesites and index to make the operation deterministic (enables -resume)
+    Hisat2Input = FragmentsFastq.combine(SpliceSites).combine(Hisat2Index)
+                    // Channel structure: meta, fastq, splice_sites, ...index_files...
+                        .multiMap{it ->
+                             FragmentsFastq: [it[0], it[1]]
+                             Hisat2Index: it[3..-1]
+                             SpliceSites: it[2]
+                        }
+    // Align with hisat2:
+    Bam = HISAT2_ALIGN ( Hisat2Input ).bam
+
+    /* Convert to BED */
+    Bed = BAM2BED( Bam ).bed
+
+    /* Convert BED to table */
+    // Bed file might have some reads missing or unordered.
+    // Convert BED to table where the read order is guaranteed:
+    TableBedInput = Bed.combine(Table)
+                    // Combine input bed with input table by tagless ids:
+                        .filter{ it -> tagless(it[0].id) == it[2].id }
+                    // Channel structure: meta_bed, bed, meta_ref, ref
+                        .multiMap{ it ->
+                            bed: [it[0], it[1]]
+                            table_ref: [it[2], it[3]]
+                        }
+    // Note that you can get an error "No columns to parse" if the reads were not mapped at all:
+    TableBedFragments = TABLE_BED( TableBedInput ).table
+
+    TableBedMergeInput = TableBedFragments
+                    // Remove rfrag tag from id and restructure the channel:
+                        .map{ meta, table -> remove_tag([meta, [table, meta.fragment]]) }
+                    // Remove any extra parameters of meta:
+                        .map{ removeKeys(it, extraKeys) }
+                    // groupTuple with sorting to guarantee deterministic output,
+                    // note that size depends on the number of fragments:
+                        .groupTuple(by:0, sort:{it->it[1]})
+                        .map{meta, it -> [meta, it.transpose().collect()]}
+                    // Create multi-channel:
+                        .multiMap{ meta, it ->
+                            table_bed: [meta, it[0]]
+                            suffixes: it[1]
+                        }
+
+    TableBed = TABLE_FRAGMENTS_MERGE( TableBedMergeInput ).table
+
+
+    /* Annotate restriction */
+    // Restriction annotation takes BED file, reads table and renzyme file as input
+    // and for each fragment reports the closest restriction recognition sites (on the left and on the right).
+    // First, create formatted input for the TABLE_ANNOTATE_RESTRICTION process:
+    TableBedExpanded = TableBedFragments
+                    // Filter out non-restricted fragments:
+                        .filter{ it[0].getOrDefault('restriction', '') }
+                    // Emit for each restriction enzyme and orientation:
+                        .map{it -> [it[0], it[1], it[0].restriction] }.transpose(by:2)
+                    // Update meta params:
+                        .map{ meta, file, restriction -> update_meta( [meta, file], [restriction: restriction] ) }
+                    // Update id to include restriction enzyme:
+                        .map { add_tag(it, it[0].restriction.join()) }
+
+    TableRestrictionInput = TableBedExpanded.combine( RestrictedChannel )
+                    // Channel: meta_bed, bed, meta_restr, restr
+                    // Take renzyme annotation for the same renzyme and strand orientation:
+                        .filter{ it -> it[0].restriction == [it[2].renzyme, it[2].renz_strand] }
+                    // Multi-channel:
+                        .multiMap{ it ->
+                            bed: [it[0], it[1]]
+                            restr: [it[2], it[3]]
+                        }
+    // Annotate bed files by the sites of restriction recognition:
+    TableRestrictionFragments = TABLE_ANNOTATE_RESTRICTION( TableRestrictionInput ).table
+
+    // Merge restriction tables into a single one:
+    TableRestrictionMergeInput = TableRestrictionFragments
+                    // Remove restriction tag:
+                        .map{ remove_tag(it, 2) }
+                    // Remove any extra parameters of meta:
+                        .map{ removeKeys(it, extraKeys ) }
+                    // Group by meta. Note that size depends on the number of fragments:
+                        .groupTuple(by:0, sort:true)
+                    // Combine with empty suffixes(required input for TABLE_RESTRICTION_MERGE).
+                    // We don't have to add specific suffixes here, because fragments/renzymes
+                    // are stored in the columns of individual tables:
+                        .combine(Channel.from(''))
+                    // Multi-channel:
+                        .multiMap{ meta, files, suffixes ->
+                            table_bed: [meta, files]
+                            suffixes: suffixes
+                        }
+
+    TableRestriction = TABLE_RESTRICTION_MERGE( TableRestrictionMergeInput ).table
+
+    /* Evaluation of final filters */
+    /* Collect final tables */
+    TablesCollected = Table.mix(TableBed)
+                        .mix(TableRestriction)
+                        .mix(TableDedup)
+                        .mix(TableFragmentsColumns)
+                    // Remove any extra parameters of meta:
+                        .map{ removeKeys(it, extraKeys) }
+                    // All channels have the same keys in meta, we can group by it.
+                    // Channel: meta, [table, table_bed, table_dedup, table_fragments]
+                    // (tables might be in some other order, sorting depends on full file names)
+                        .groupTuple(by:0, sort:true)
+
+    /*  Collect final filters: */
+    def FilterColumns = [:]
+    for (filter_name in params.filters.keySet()){
+        def filter_params = params.filters[filter_name]
+        if (filter_params instanceof List) {
+            filter_params = "(" + filter_params.join(") | (") + ")"
+        }
+        FilterColumns[filter_name] = filter_params
+    }
+
+    /* Evaluate filters on collected tables: */
+    TableEvaluateInput = TablesCollected.combine(Channel.from(FilterColumns))
+                          .multiMap{ it ->
+                                tables: [it[0], it[1]]
+                                filters: it[2]
+                          }
+    TableFinalChunked = TABLE_EVALUATE_FILTERS( TableEvaluateInput ).table
+
+    /* Output tables */
+    TableAllChunked = TablesCollected.combine(TableFinalChunked, by:0)
+                        .map{it -> [it[0], it[1]+[it[2]]]}
+
+    if (params.output['tables']){
+
+        // Channel: [table_name, filter, [header_columns]]
+        FilesCollection = Channel.fromList(
+                params.output.tables.collect{ k, v -> [k, v['filter'], v['header'].split(" ")]}
+            )
+
+        DumpInput = TableAllChunked.combine(FilesCollection)
+                    // Channel: [meta, files, table_name, filter, [header_columns]]
+                    // Add tag with table name:
+                        .map{ add_tag(it, it[2]) }
+                    // Add meta keys. Table_name is for identification of table type.
+                    // Columns will guarantee the order in STACK:
+                        .map{ update_meta(it, [table_name: it[2], columns:it[4]]) }
+                    // Multi-channel:
+                        .multiMap{ it ->
+                            table: [it[0], it[1]]
+                            filter: it[3]
+                            columns: it[4]
+                        }
+        TableDumpedChunked = RESULTS_DUMP( DumpInput ).table
+        TableChunked = TableDumpedChunked.mix( TableFinalChunked.map{ update_meta(it, [table_name:'filters']) } )
+    }
+    else {
+        TableChunked = TableFinalChunked.map{ update_meta(it, [table_name:'filters']) }
+    }
+
+    /* Merge final tables between replicates: */
+    TableStackChunksInput = TableChunked.map{ it -> [[sample:it[0].original_id, table_name:it[0].table_name], [it[0], it[1]]] }
+                 // Group chunks and sort by chunk number:
+                     .groupTuple(by:0, sort:{it -> it[0].chunk})
+                 // Channel: [meta, [..tables..]] (tables were sorted by chunk and table type)
+                     .map{id, it -> [it[0][0], it.transpose().collect()[1]]}
+                 // Replace id with original_id and remove chunk from meta:
+                    .map{ update_meta(it, [id: it[0].original_id]) }
+                    .map{ removeKeys(it, ['chunk']) }
+
+    if (params.protocol.getOrDefault('merge_groups', false)) {
+        TableStackGroupInput = TableChunked.map{ it -> [[sample:it[0].group, table_name:it[0].table_name], [it[0], it[1]]] }
+                 // Group chunks and sort by chunk number:
+                     .groupTuple(by:0, sort:{it -> it[0].original_id})
+                 // Channel: [meta, [..tables..]] (tables were sorted by original_id)
+                     .map{id, it -> [it[0][0], it.transpose().collect()[1]]}
+                 // Replace id with original_id and remove chunk from meta:
+                    .map{ update_meta(it, [id: it[0].group+'.merged.'+it[0].table_name]) }
+                    .map{ removeKeys(it, ['chunk', 'original_id']) }
+        TableStackInput = TableStackChunksInput.mix(TableStackGroupInput)
+    } else {
+        TableStackInput = TableStackChunksInput
+    }
+
+    TableFinal = RESULTS_STACK( TableStackInput ).table
+
+    if (params.output['stats']){
+        /* Write table with stats */
+
+        // Channel: [stats_name, [header_columns]]
+        StatsList = Channel.fromList(
+                params.output.stats.collect{ k, v -> [k, v] }
+        )
+
+        StatsInput = TableFinal.combine(StatsList)
+                    // Channel: [meta, file, stats_name, [cols]]
+                    // Filter appropriate tables:
+                        .filter{ it[0].table_name==it[3].table_name }
+                    // Add tag with stats name:
+                        .map{ add_tag(it, it[2]) }
+                    // Update meta with the name of stats:
+                        .map{ update_meta(it, [stats_name:it[2]]) }
+                    // Multi-channel:
+                        .multiMap{ it ->
+                            table: [it[0], it[1]]
+                            columns: it[3].filters
+                        }
+        TableStats = RESULTS_STATS( StatsInput ).table
+
+    }
+
+    if (params.output['tables'] && params.output['cooler']){
+        /* Write coolers */
+
+        // Channel: [cool_name, params]
+        CoolerList = Channel.fromList(
+                params.output.cooler.collect{ k, v -> [k, v] }
+        )
+
+        CoolerInput = TableFinal.combine(CoolerList)
+                    // Channel: [meta, file, cool_name, params]
+                    // Select only requested dumped table:
+                        .filter{ it[0].table_name == it[3].table_name }
+                    // Add tag with stats name:
+                        .map{ add_tag(it, it[2]) }
+                    // Update meta with parameters:
+                        .map{ update_meta(it, it[3]) }
+                        .map{ update_meta(it, params) }
+                    // Combine with chromosome sizes:
+                        .combine(ChromSizes)
+                    // Channel: [meta, file, cool_name, params, chromsizes]
+                    // Multi-channel:
+                        .multiMap{ it ->
+                            table: [it[0], it[1]]
+                            chromsizes: it[4]
+                        }
+        Coolers = COOLER_MAKE( CoolerInput )
+
+    }
 
 }
 

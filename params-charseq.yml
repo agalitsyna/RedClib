@@ -11,101 +11,52 @@ genome:
     index_prefix: '/home/agalicina/soft/sandbox/RedClib_charseq/data/genome/dm6.fa'
     fasta: '/home/agalicina/soft/sandbox/RedClib_charseq/data/genome/dm6.fa'
     rna_annotation_suffix: 'refGene'
-#    restricted: # might be incomplete list
-#      DpnII: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/genome/hg38.DpnII.bed'
-#      HindIII: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/genome/hg38.HindIII.bed'
-#      MmeI: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/genome/hg38.MmeI.bed'
-#      NlaIII: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/genome/hg38.NlaIII.bed'
+    restricted: # might be incomplete list
+        DpnII: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/genome/hg38.DpnII.bed'
+#        HindIII: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/genome/hg38.HindIII.bed'
+#        MmeI: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/genome/hg38.MmeI.bed'
+#        NlaIII: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/genome/hg38.NlaIII.bed'
 
 
 protocol:
-    chunksize: 1000000
+    chunksize: 2500000
     check_restriction: true
     renzymes:
         - DpnII
     dedup_crop: 50
     trimmomatic_params: 'SLIDINGWINDOW:5:26 MINLEN:0'
+    merge_groups: true
 
-# Scheme of oligos mapping: 
+# Scheme of oligos mapping:
 oligos:
     # You may specify as many oligos as you need:
     bridge_forward: # Below are required parameters to ma each oligo
-        file: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/oligos/br_37_for.fasta'
+        file: '/home/agalicina/soft/sandbox/RedClib_charseq/data/oligos/bridge_charseq_for.fasta'
         n_oligos: 1 # Number of oligos in the file
         side: 1 # Apply the search to the side of the reads
         right_allowed_shift: -14 # Minimum distance to the right side of the read after which the search in the read will be terminated
         left_allowed_shift: 0 # Minimum distance to the left side of the read when the search will be started
         mismatches_allowed: 1 # Number of mismatches allowed
-        expected_length: 37 # Expected length of oligo hit
-        right_to_left: true # Search right-to-left (3'-5') instead of regular left-to-right (5'-3')
+        expected_length: 23 # Expected length of oligo hit
+        right_to_left: false # regular search
 
     bridge_reverse:
-        file: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/oligos/br_37_rev.fasta'
+        file: '/home/agalicina/soft/sandbox/RedClib_charseq/data/oligos/bridge_charseq_rev.fasta'
         n_oligos: 1
-        side: 2
-        right_allowed_shift: -14
-        left_allowed_shift: 0
-        mismatches_allowed: 1
-        expected_length: 37
-        right_to_left: true # Search right-to-left (3'-5') instead of regular left-to-right (5'-3')
-
-    ggg:
-        file: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/oligos/ggg.fasta'
-        n_oligos: 1
-        side: 2
-        right_allowed_shift: 3 # For the start of read
-        left_allowed_shift: 0
-        mismatches_allowed: 0
-        expected_length: 3
-        right_to_left: true # Search right-to-left (3'-5') instead of regular left-to-right (5'-3')
-
-    adaptor_forward:
-        file: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/oligos/for_20.fasta'
-        n_oligos: 2
-        side: 1
-        right_allowed_shift: -14
-        left_allowed_shift: -6
-        mismatches_allowed: 1
-        expected_length: 20
-        right_to_left: true # Search right-to-left (3'-5') instead of regular left-to-right (5'-3')
-
-    adaptor_forward_r2:
-        file: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/oligos/for_20.fasta'
-        n_oligos: 2
-        side: 2
-        right_allowed_shift: -14
-        left_allowed_shift: -6
-        mismatches_allowed: 1
-        expected_length: 20
-        right_to_left: true # Search right-to-left (3'-5') instead of regular left-to-right (5'-3')
-
-    adaptor_reverse:
-        file: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/oligos/rev_20.fasta'
-        n_oligos: 2
-        side: 2
-        right_allowed_shift: -14
-        left_allowed_shift: -6
-        mismatches_allowed: 1
-        expected_length: 20
-        right_to_left: true # Search right-to-left (3'-5') instead of regular left-to-right (5'-3')
-
-    adaptor_reverse_short:
-        file: '/home/agalicina/soft/sandbox/RedClib_dsl2_test/data/oligos/rev_16.fasta'
-        n_oligos: 2
         side: 1
         right_allowed_shift: -14
         left_allowed_shift: 0
         mismatches_allowed: 1
-        expected_length: 16
-        right_to_left: true # Search right-to-left (3'-5') instead of regular left-to-right (5'-3')
+        expected_length: 23
+        right_to_left: false # regular search
 
-short_oligos:
-    ga:
-        sequence: 'GA'
-        reference_oligo: bridge_forward
-        reference_column: 3 # zero-based number of a column
-        position: 35
-        side: 1
+#short_oligos:
+#    ga:
+#        sequence: 'GA'
+#        reference_oligo: bridge_forward
+#        reference_column: 3 # zero-based number of a column
+#        position: 35
+#        side: 1
 #    tmp_short_oligo:
 #        sequence: 'A'
 #        reference_oligo: ggg
@@ -114,141 +65,116 @@ short_oligos:
 #        side: 2
 
 fragments:
-#    dna_noext:
-#        side: 1 # forward or reverse
-#        new_columns: # Expressions to be evaluated and stored under following keys; positions numbering starts from 0, should output int:
-#            read_dna_noext_start: 'np.where( (end_hit_adaptor_forward_R1!=99999), end_hit_adaptor_forward_R1, 0)'
-#            read_dna_noext_end: 'np.where( (start_hit_bridge_forward_R1<trim_R1), start_hit_bridge_forward_R1, trim_R1)'
-#            read_dna_noext_length: 'read_dna_noext_end-read_dna_noext_start'
-#            read_dna_noext_end_notrim: 'np.where( (start_hit_bridge_forward_R1!=99999), start_hit_bridge_forward_R1, rlen1)' # additional field for stats
-#            read_dna_noext_length_notrim: 'read_dna_noext_end_notrim-read_dna_noext_start' # additional field for stats
-#        selection_criteria: 'read_dna_noext_length>=14' # write fragment to the file only if condition is satisfies
-#        mapping_args: '-k 10 --no-softclip --no-spliced-alignment'
+
+    rna:
+        side: 1
+        new_columns:
+            # 0-[RNA]-[for-bridge]-[DNA]-rlen1 or 0-[DNA]-[rev-bridge]-[RNA]-rlen1
+            read_rna_start: 'np.where( (end_hit_bridge_reverse_R1!=99999), end_hit_bridge_reverse_R1, 0)'
+            read_rna_end: 'np.where( (start_hit_bridge_forward_R1<trim_R1), start_hit_bridge_forward_R1, trim_R1)'
+            read_rna_length: 'read_rna_end-read_rna_start'
+            read_rna_end_notrim: 'np.where( (start_hit_bridge_forward_R1!=99999), start_hit_bridge_forward_R1, rlen1)'
+            read_rna_length_notrim: 'read_rna_end_notrim-read_rna_start' # additional field for stats
+            read_orientation_RNADNA: '(start_hit_bridge_forward_R1!=99999)'
+            read_orientation_DNARNA: '(start_hit_bridge_reverse_R1!=99999)'
+            read_no_orient: '(start_hit_bridge_forward_R1==99999) & (start_hit_bridge_reverse_R1==99999)'
+            read_orient_both: '(start_hit_bridge_forward_R1!=99999) & (start_hit_bridge_reverse_R1!=99999)'
+        selection_criteria: 'read_rna_length>=14'
+        mapping_args: '-k 10 --no-softclip --dta-cufflinks --known-splicesite-infile'
+        annotate_restriction:
+            - ['DpnII', 'b']
 
     dna:
         side: 1
-        #extension_prefix: 'GA' # For cases when you want to add prefix
-        extension_suffix: 'CATG' # Optional. Remove this parameter if you don't need DNA extension
+        extension_prefix: 'GATC' # For cases when you want to add prefix
         new_columns:
-            read_dna_start: 'np.where( (end_hit_adaptor_forward_R1!=99999), end_hit_adaptor_forward_R1, 0)'
-            read_dna_end: 'np.where( (start_hit_bridge_forward_R1<trim_R1), start_hit_bridge_forward_R1, trim_R1)'
+            # 0-[RNA]-[for-bridge]-[DNA]-rlen1 or 0-[DNA]-[rev-bridge]-[RNA]-rlen1
+            read_dna_start: 'np.where( (end_hit_bridge_forward_R1!=99999), end_hit_bridge_forward_R1, 0)'
+            read_dna_end: 'np.where( (start_hit_bridge_reverse_R1<trim_R1), start_hit_bridge_reverse_R1, trim_R1)'
             read_dna_length: 'read_dna_end-read_dna_start'
-            read_dna_end_notrim: 'np.where( (start_hit_bridge_forward_R1!=99999), start_hit_bridge_forward_R1, rlen1)' # additional field for stats
+            read_dna_end_notrim: 'np.where( (start_hit_bridge_reverse_R1!=99999), start_hit_bridge_reverse_R1, rlen1)' # additional field for stats
             read_dna_length_notrim: 'read_dna_end_notrim-read_dna_start' # additional field for stats
         selection_criteria: 'read_dna_length>=14'
         mapping_args: '-k 10 --no-softclip --no-spliced-alignment'
-
-    rna1:
-        side: 1
-        new_columns:
-            read_rna1_start: 'np.where( (start_hit_bridge_forward_R1!=99999), start_hit_bridge_forward_R1+37, 0)'
-            #read_rna1_start: 'np.array( [trim_R1, start_hit_bridge_forward_R1+37] ).min(axis=0)' # This setting will make more sense because it considers trimming
-            read_rna1_end: 'np.array( [trim_R1, end_hit_compl_R1, start_hit_adaptor_reverse_short_R1] ).min(axis=0)'
-            read_rna1_length: 'read_rna1_end-read_rna1_start'
-            read_rna1_end_notrim: 'np.array( [rlen1, end_hit_compl_R1, start_hit_adaptor_reverse_short_R1] ).min(axis=0)' # additional field for stats
-            read_rna1_length_notrim: 'read_rna1_end_notrim-read_rna1_start' # additional field for stats
-        selection_criteria: 'read_rna1_length>=14'
-        mapping_args: '-k 10 --no-softclip --dta-cufflinks --known-splicesite-infile'
         annotate_restriction:
-            - ['NlaIII', 'b']
+            - ['DpnII', 'b']
 
-    rna2:
-        side: 2
-        new_columns:
-            read_rna2_start: 'np.maximum( np.where( (end_hit_ggg_R2!=99999), end_hit_ggg_R2, 0), np.where( (end_hit_adaptor_forward_r2_R2!=99999), end_hit_adaptor_forward_r2_R2, 0) )'
-            #read_rna2_start: 'np.array( [trim_R2, np.maximum( np.where( (end_hit_ggg_R2!=99999), end_hit_ggg_R2, 0), np.where( (end_hit_adaptor_forward_r2_R2!=99999), end_hit_adaptor_forward_r2_R2, 0) )] ).min(axis=0)'
-            read_rna2_end: 'np.array( [trim_R2, start_hit_bridge_reverse_R2, end_hit_compl_R2] ).min(axis=0)'
-            read_rna2_length: 'read_rna2_end-read_rna2_start'
-            read_rna2_end_notrim: 'np.array( [rlen2, start_hit_bridge_reverse_R2, end_hit_compl_R2] ).min(axis=0)' # additional field for stats
-            read_rna2_length_notrim: 'read_rna2_end_notrim-read_rna2_start' # additional field for stats
-        selection_criteria: 'read_rna2_length>=14'
-        mapping_args: '-k 10 --no-softclip --dta-cufflinks --known-splicesite-infile'
-        annotate_restriction:
-            - ['MmeI', '+']
-            - ['MmeI', '-']
-            - ['NlaIII', 'b']
 
 filters:
-    # Restriction filters:
-    rna2_mme_failed: # <- filter name
-            - '(strand_rna2=="+") & (rna2_start_MmeIp_left<=-26) & (rna2_start_MmeIp_left>=-27)'
-            - '(strand_rna2=="+") & (rna2_start_MmeIn_right<=19) & (rna2_start_MmeIn_right>=-18)'
-            - '(strand_rna2=="-") & (rna2_end_MmeIp_left<=-25) & (rna2_end_MmeIp_left>=-26)'
-            - '(strand_rna2=="-") & (rna2_end_MmeIn_right<=21) & (rna2_end_MmeIn_right>=20)'
-    rna2_nla_failed:
-            - '(strand_rna2=="+") & (rna2_start_NlaIII_left>=-5) & (rna2_start_NlaIII_left<=0)'
-            - '(strand_rna2=="+") & (rna2_start_NlaIII_right>=0) & (rna2_start_NlaIII_right<=1)'
-            - '(strand_rna2=="-") & (rna2_end_NlaIII_left>=-5) & (rna2_end_NlaIII_left<=0)'
-            - '(strand_rna2=="-") & (rna2_end_NlaIII_right>=0) & (rna2_end_NlaIII_right<=1)'
-    rna1_nla_failed:
-            - '(strand_rna1=="+") & (rna1_start_NlaIII_left>=-5) & (rna1_start_NlaIII_left<=0)'
-            - '(strand_rna1=="+") & (rna1_start_NlaIII_right>=0) & (rna1_start_NlaIII_right<=1)'
-            - '(strand_rna1=="-") & (rna1_end_NlaIII_left>=-5) & (rna1_end_NlaIII_left<=0)'
-            - '(strand_rna1=="-") & (rna1_end_NlaIII_right>=0) & (rna1_end_NlaIII_right<=1)'
+#    # Restriction filters:
+    rna_dpn_failed:
+            - '(strand_rna=="+") & (rna_start_DpnII_left>=-5) & (rna_start_DpnII_left<=0)'
+            - '(strand_rna=="+") & (rna_start_DpnII_right>=0) & (rna_start_DpnII_right<=1)'
+            - '(strand_rna=="-") & (rna_end_DpnII_left>=-5) & (rna_end_DpnII_left<=0)'
+            - '(strand_rna=="-") & (rna_end_DpnII_right>=0) & (rna_end_DpnII_right<=1)'
+
+    dna_dpn_passed:
+            - '(strand_dna=="+") & (dna_start_DpnII_left>=-5) & (dna_start_DpnII_left<=0)'
+            - '(strand_dna=="+") & (dna_start_DpnII_right>=0) & (dna_start_DpnII_right<=1)'
+            - '(strand_dna=="-") & (dna_end_DpnII_left>=-5) & (dna_end_DpnII_left<=0)'
+            - '(strand_dna=="-") & (dna_end_DpnII_right>=0) & (dna_end_DpnII_right<=1)'
 
     # Fragments mapped:
     dna_isMapped:  '(nSub_dna >= 0)  & (nSub_dna <= 2)'#  & (mapq_dna>0)'
-    rna1_isMapped: '(nSub_rna1 >= 0) & (nSub_rna1 <= 2)'# & (mapq_rna1>0)'
-    rna2_isMapped: '(nSub_rna2 >= 0) & (nSub_rna2 <= 2)'# & (mapq_rna2>0)'
+    rna_isMapped: '(nSub_rna >= 0) & (nSub_rna <= 2)'# & (mapq_rna>0)'
 
     # Fragments mapped uniquely:
     dna_isUniquelyMapped:  '(nMultiMap_dna == 1)'
-    rna1_isUniquelyMapped: '(nMultiMap_rna1 == 1)'
-    rna2_isUniquelyMapped: '(nMultiMap_rna2 == 1)'
+    rna_isUniquelyMapped: '(nMultiMap_rna == 1)'
 
     # No large deletions:
 
     # Pattern for filtering the relevant chromosomes:
-    isCanonical: 'match(chrom_dna, "chr[0-9,X,Y]|chr[0-9][0-9]") & match(chrom_rna1, "chr[0-9,X,Y]|chr[0-9][0-9]") & match(chrom_rna2, "chr[0-9,X,Y]|chr[0-9][0-9]")'
+    isCanonical: 'match(chrom_dna, "chr[4,X,Y]|chr[2,3][L,R]") & match(chrom_rna, "chr[4,X,Y]|chr[2,3][L,R]")'
 
     # RNA-DNA localization and orientation filters:
-    RNAsDirectionPassed: '(chrom_rna2==chrom_rna1) & (strand_rna2!=strand_rna1)'
-    RNADNASamePos: '(chrom_dna==chrom_rna2) & (strand_dna!=strand_rna2) & (np.abs(start_dna-end_rna2)<=1)'
+#    RNAsDirectionPassed: '(chrom_rna2==chrom_rna1) & (strand_rna2!=strand_rna1)'
+    RNADNASamePos: '(chrom_dna==chrom_rna) & (np.abs(start_dna-end_rna)<=1)'
 
     # Filter 1: Read is not PCR duplication
     F1_notDup: '(isUnique)'
     # Filter 2: there is a bridge in the read, with last AG letters, it is not cut by the quality filter
-    F2_goodBridge: '(start_hit_bridge_forward_R1<9999) & oligo_ga_at_35'
+    F2_goodBridge: '(start_hit_bridge_forward_R1<9999) | (start_hit_bridge_reverse_R1<9999)'
     # Filter 3: Reverse read starts with GGG
-    F3_goodGGG: '(start_hit_ggg_R2<9999)'
-    # Filter 4: DNA length 18-20
-    F4_goodDNAlength: '(read_dna_length_notrim>=18)&(read_dna_length_notrim<=20)'
-    # Filter 5: RNA is >= 14 bp before trimming and RNA1 >= 14 bp
-    F5_goodRNAlength: '(read_rna1_length_notrim>=14)&(read_rna2_length_notrim>=14)'
+#    F3_goodGGG: '(start_hit_ggg_R2<9999)'
+    # Filter 4: DNA length >= 14 bp before trimming
+    F4_goodDNAlength: '(read_dna_length_notrim>=14)'
+    # Filter 5: RNA is >= 14 bp before trimming
+    F5_goodRNAlength: '(read_rna_length_notrim>=14)'
     # Filter 6: Trimming passed
-    F6_passedTrimming: '(trim_R1>0)&(trim_R2>0)'
+    F6_passedTrimming: '(trim_R1>0)'
     # Filter 6a: Trimmed segments are > 14 bp
-    F6a_passedTrimming_strict: '(read_dna_length>=18)&(read_dna_length<=20)&(read_rna1_length>=14)&(read_rna2_length>=14)'
+    F6a_passedTrimming_strict: '(read_dna_length>=14)&(read_rna_length>=14)'
     # Filter 7: All three segments are uniquely mapped to chromosomes
     #  F7_uniqueCanonical: 'dna_is_not_multi & rna1_is_not_multi & rna2_is_not_multi & dna_is_mapped & rna1_is_mapped & rna2_is_mapped' #& dna_chr_canonical & rna1_chr_canonical & rna2_chr_canonical'
-    F7_uniqueCanonical: 'isCanonical & dna_isMapped & rna1_isMapped & rna2_isMapped & dna_isUniquelyMapped & rna1_isUniquelyMapped & rna2_isUniquelyMapped '
-    F7a_RNAsameChr: 'chrom_rna1==chrom_rna2'
-    F7b_RNAoppositeStrands: 'strand_rna1!=strand_rna2'
+    F7_uniqueCanonical: 'isCanonical & dna_isMapped & rna_isMapped & dna_isUniquelyMapped & rna_isUniquelyMapped'
+#    F7a_RNAsameChr: 'chrom_rna1==chrom_rna2'
+#    F7b_RNAoppositeStrands: 'strand_rna1!=strand_rna2'
     # Filter 8a: Same pos of DNA and RNA
     F8a_notRNADNASamePos: '~RNADNASamePos'
-    # Filter 8b: Confirm absence of NlaIII and MmeI influence on RNA
-    F8b_RNAnotDigested: '~rna1_nla_failed & ~rna2_nla_failed & ~rna2_mme_failed'
+    # Filter 8b: Confirm absence of DpnII influence on RNA
+    F8b_RNAnotDigested: '~rna_dpn_failed'
     # Filter 9: RNA1 and RNA distance is small enough
-    F9_closeRNA: 'np.abs(start_rna2-start_rna1)<1e4'
+#    F9_closeRNA: 'np.abs(start_rna2-start_rna1)<1e4'
 
     # Applying sequential filters, similar ones were used in the supplementary table for RedC paper:
     V0:  '(np.ones(len(F1_notDup)))'
     V1:  '(F1_notDup)'
     V2:  '(F1_notDup & F2_goodBridge)'
-    V3:  '(V2 & F3_goodGGG)'
-    V4:  '(V3 & F4_goodDNAlength)'
-    V35: '(V3 & F5_goodRNAlength)'
+#    V3:  '(V2 & F3_goodGGG)'
+    V4:  '(V2 & F4_goodDNAlength)'
+    V35: '(V2 & F5_goodRNAlength)'
     V5:  '(V4 & F5_goodRNAlength)'
     V24: '(V2 & F4_goodDNAlength)'
     V25: '(V2 & F5_goodRNAlength)'
     V6:  '(V5 & F6_passedTrimming)'
     V6a: '(V5 & F6a_passedTrimming_strict)'
     V7:  '(V5 & F6_passedTrimming & F6a_passedTrimming_strict & F7_uniqueCanonical)'
-    V7a: '(V7 & F7a_RNAsameChr)'
-    V7b: '(V7 & F7a_RNAsameChr & F7b_RNAoppositeStrands)'
-    V8a: '(V7b & F8a_notRNADNASamePos)'
-    V8b: '(V7b & F8a_notRNADNASamePos & F8b_RNAnotDigested)'
-    V9:  '(V8b & F9_closeRNA)'
+#    V7a: '(V7 & F7a_RNAsameChr)'
+#    V7b: '(V7 & F7a_RNAsameChr & F7b_RNAoppositeStrands)'
+    V8a: '(V7 & F8a_notRNADNASamePos)'
+    V8b: '(V7 & F8a_notRNADNASamePos & F8b_RNAnotDigested)'
+#    V9:  '(V8b & F9_closeRNA)'
 
 
 output:
@@ -259,31 +185,31 @@ output:
         #    filter: 'filter_name'
         #    header: '<list-of-columns>'
         default:
-            filter: 'V9'
-            header: 'readID chrom_rna1 start_rna1 end_rna1 strand_rna1 cigar_rna1 chrom_rna2 start_rna2 end_rna2 strand_rna2 cigar_rna2 chrom_dna start_dna end_dna strand_dna cigar_dna'
+            filter: 'V8a'
+            header: 'readID chrom_rna start_rna end_rna strand_rna cigar_rna chrom_dna start_dna end_dna strand_dna cigar_dna'
         # Demonstration of alternative table structure. Note that this table will be huge and useless for real data:
         resulting_table2:
-            filter: 'V1'
-            header: 'readID V9 R1 R2'
+            filter: 'V0'
+            header: 'readID read_orientation_RNADNA read_orientation_DNARNA read_no_orient read_orient_both dna_dpn_passed rna_dpn_failed'
 
-    cooler: # Describe what to use for coolers (required):
-        default:
-            table_name: default
-            resolution: 1000000
-            c1: 2   # Column with chromosome name for RNA part
-            c2: 12  # Column with chromosome name for DNA part
-            p1: 3   # Column with start for RNA part
-            p2: 13  # Column with start for DNA part
+#    cooler: # Describe what to use for coolers (required):
+#        default:
+#            table_name: default
+#            resolution: 1000000
+#            c1: 2   # Column with chromosome name for RNA part
+#            c2: 12  # Column with chromosome name for DNA part
+#            p1: 3   # Column with start for RNA part
+#            p2: 13  # Column with start for DNA part
 
     # Report the sum over the following columns:
     stats:
         default: # name of the stats file
-            table_name: filters # use this initial table (filters is all evaluated filters)
+            table_name: default # use this initial table (filters is all evaluated filters)
             filters:
                 - V0
                 - V1
                 - V2
-                - V3
+#                - V3
                 - V4
                 - V5
                 - V35
@@ -292,8 +218,17 @@ output:
                 - V6
                 - V6a
                 - V7
-                - V7a
-                - V7b
+#                - V7a
+#                - V7b
                 - V8a
                 - V8b
-                - V9
+#                - V9
+        quality: # name of the stats file
+            table_name: resulting_table2 # use this initial table (filters is all evaluated filters)
+            filters:
+                - read_orientation_RNADNA
+                - read_orientation_DNARNA
+                - read_no_orient
+                - read_orient_both
+                - dna_dpn_passed
+                - rna_dpn_failed

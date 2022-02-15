@@ -35,12 +35,12 @@ process FASTQ2TSV {
     def readCmd = ""
 
     if (meta.single_end) {
-        def input_fq1 = reads[0]
+        def input_fq1 = reads
         readCmd = (isGZ(input_fq1.toString())) ?  "bgzip -dc -@ ${task.cpus}" : "cat"
         """
         echo "#readID\tsample\tR1\tQ1\trlen1"  > ${prefix}.fastq.tsv
         paste <(${readCmd} ${input_fq1} | awk '{print \$1}' | sed 'N;N;N;s/\\n/ /g' | \
-                awk 'BEGIN{OFS="\\t"}{print substr(\$1,2), "${prefix}", \$2, \$4, length(\$2)}' ) >> ${prefix}.fastq.txt
+                awk 'BEGIN{OFS="\\t"}{print substr(\$1,2), "${prefix}", \$2, \$4, length(\$2)}' ) >> ${prefix}.fastq.tsv
 
         echo $VERSION > ${software}.version.txt
         """

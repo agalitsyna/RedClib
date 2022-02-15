@@ -1,2 +1,6 @@
 sample,group,fastq_1,fastq_2,rlen,single_end
-cl8_rep4A,cl8,sra:SRR5382175:start=1&end=20000,,151,true
+cl8_rep4A,cl8,sra:SRR5382175,,151,true
+cl8_rep1,cl8,sra:SRR5382172,,151,single
+cl8_rep3,cl8,sra:SRR5382174,,151,single
+cl8_rep2,cl8,sra:SRR5382173,,151,single
+cl8_rep4B,cl8,sra:SRR5382176,,151,single
