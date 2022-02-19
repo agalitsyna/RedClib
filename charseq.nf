@@ -38,9 +38,14 @@ def chunksize = protocol.getOrDefault('chunksize', 100000000000)
 def check_restriction = protocol.getOrDefault('check_restriction', false)
 def RenzymesPreloaded = Genome.getOrDefault('restricted', [:])
 
+// Check number of oligos, short oligos and fragments:
+nOligos = params.getOrDefault('oligos', [:]).keySet().size()
+nShortOligos = params.getOrDefault('short_oligos', [:]).keySet().size()
+nFragments = params.getOrDefault('fragments', [:]).keySet().size()
+
 // Include modules and subworkflows
 include { INPUT_CHECK_DOWNLOAD } from './subworkflows/local/input_check' addParams( options: [:] )
-include { INPUT_SPLIT          } from './subworkflows/local/input_split' addParams( options: [chunksize: chunksize] )
+include { INPUT_SPLIT          } from './subworkflows/local/input_split' addParams( options: [chunksize: chunksize, single_end:true] )
 
 include { GENOME_PREPARE } from './modules/local/genome_prepare/main'  addParams( options: [
                              args: [
@@ -239,7 +244,7 @@ workflow CHARSEQ {
                                     .map{ removeKeys(it, oligoKeys ) }
                                // Group by metadata, which should be identical for the same sample/chunk
                                // Note that group size depends on the number of oligos and short oligos:
-                                    .groupTuple(by:0, sort:true)
+                                    .groupTuple(by:0, sort:true, size: 3)
                                // Combine with channel with empty suffixes
                                     .combine(Channel.from(['']))
                                // Create restructured multi-channel:
@@ -359,7 +364,7 @@ workflow CHARSEQ {
                         .map{ removeKeys(it, extraKeys) }
                     // groupTuple with sorting to guarantee deterministic output,
                     // note that size depends on the number of fragments:
-                        .groupTuple(by:0, sort:{it->it[1]})
+                        .groupTuple(by:0, sort:{it->it[1]}, size: nFragments)
                         .map{meta, it -> [meta, it.transpose().collect()]}
                     // Create multi-channel:
                         .multiMap{ meta, it ->
@@ -403,7 +408,7 @@ workflow CHARSEQ {
                     // Remove any extra parameters of meta:
                         .map{ removeKeys(it, extraKeys ) }
                     // Group by meta. Note that size depends on the number of fragments:
-                        .groupTuple(by:0, sort:true)
+                        .groupTuple(by:0, sort:true) // TODO: add expected size
                     // Combine with empty suffixes(required input for TABLE_RESTRICTION_MERGE).
                     // We don't have to add specific suffixes here, because fragments/renzymes
                     // are stored in the columns of individual tables:
@@ -427,7 +432,7 @@ workflow CHARSEQ {
                     // All channels have the same keys in meta, we can group by it.
                     // Channel: meta, [table, table_bed, table_dedup, table_fragments]
                     // (tables might be in some other order, sorting depends on full file names)
-                        .groupTuple(by:0, sort:true)
+                        .groupTuple(by:0, sort:true) // TODO: add expected size
 
     /*  Collect final filters: */
     def FilterColumns = [:]
