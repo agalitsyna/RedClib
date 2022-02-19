@@ -45,6 +45,12 @@ def protocol = params.getOrDefault('protocol', [:])
 def chunksize = protocol.getOrDefault('chunksize', 100000000000)
 def check_restriction = protocol.getOrDefault('check_restriction', false)
 def RenzymesPreloaded = Genome.getOrDefault('restricted', [:])
+def dedupMethod = protocol.getOrDefault('dedup_method', 'fastuniq')
+
+// Check number of oligos, short oligos and fragments:
+nOligos = params.getOrDefault('oligos', [:]).keySet().size
+nShortOligos = params.getOrDefault('short_oligos', [:]).keySet().size
+nFragments = params.getOrDefault('fragments', [:]).keySet().size
 
 // Include modules and subworkflows
 include { INPUT_CHECK_DOWNLOAD } from './subworkflows/local/input_check' addParams( options: [:] )
@@ -66,7 +72,10 @@ include { GENOME_PREPARE_RNA_ANNOTATIONS } from './modules/local/genome_prepare_
 
 include { FASTQC } from './modules/nf-core/software/fastqc/main' addParams( options: [:] )
 include { FASTQ2TSV as TABLE_FASTQ2TSV } from './modules/local/fastq2table/main' addParams( options: [:] )
-include { DEDUP_FASTUNIQ as TABLE_DEDUP } from './subworkflows/local/dedup_fastuniq' addParams( options: [:] )
+
+if (dedupMethod=="fastuniq"){
+    include { DEDUP_FASTUNIQ as TABLE_DEDUP } from './subworkflows/local/dedup_fastuniq' addParams( options: [:] )
+}
 include { TRIMTABLE_CREATE as TABLE_TRIM } from './subworkflows/local/trimtable_create' addParams( options: [:] )
 
 include { RNADNATOOLS_TABLE_ALIGN as TABLE_DEDUP_ALIGN } from './modules/rnadnatools/table_align/main'  addParams( options: [
@@ -264,7 +273,11 @@ workflow REDC {
     /* Deduplicate input sequences */
 
     // Run subworkflow that trims first basepairs of reads and runs fastuniq on them:
-    FastuniqOut = TABLE_DEDUP( Fastq )
+    if (dedupMethod=="fastuniq"){
+        FastuniqOut = TABLE_DEDUP( Fastq )
+    } else {
+        FastuniqOut = Channel.empty()
+    }
 
     // Align deduplicated reads with read table
     // (we want to guarantee the same order of reads in each table):
@@ -503,7 +516,7 @@ workflow REDC {
                  // Channel: [meta, [..tables..]] (tables were sorted by original_id)
                      .map{id, it -> [it[0][0], it.transpose().collect()[1]]}
                  // Replace id with original_id and remove chunk from meta:
-                    .map{ update_meta(it, [id: it[0].group+'.merged']) }
+                    .map{ update_meta(it, [id: it[0].group+'.merged.'+it[0].table_name]) }
                     .map{ removeKeys(it, ['chunk', 'original_id']) }
         TableStackInput = TableStackChunksInput.mix(TableStackGroupInput)
     } else {
