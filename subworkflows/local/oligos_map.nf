@@ -53,7 +53,7 @@ workflow OLIGOS_MAP {
 
             /* Step 3: Format the tables and channel: */
             HitsOligosGrouped = HitsOligosStream
-                                .map{ it -> [ it[0].id, it ] }.view()
+                                .map{ it -> [ it[0].id, it ] }
                                 .groupTuple(by: 0, sort: { a, b -> a[0].idx <=> b[0].idx }, size: nOligos)
                                 .map{ it -> it.collect()[1].collect{ item -> [item[0], file(item[1]), item[0].oligo+'_R'+item[0].side] }.transpose() }
                                 .multiMap{meta, files, suffixes ->

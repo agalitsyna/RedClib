@@ -31,7 +31,7 @@ protocol:
     dedup_crop: 50
     trimmomatic_params: 'SLIDINGWINDOW:5:26 MINLEN:0'
     merge_groups: true
-    dedup_method: fastuniq
+    run_fastuniq: true
 
 # Scheme of oligos mapping: 
 oligos:
@@ -221,7 +221,7 @@ filters:
     RNADNASamePos: '(chrom_dna==chrom_rna2) & (strand_dna!=strand_rna2) & (np.abs(start_dna-end_rna2)<=1)'
 
     # Filter 1: Read is not PCR duplication
-    F1_notDup: '(isUnique)'
+    F1_notDup: '(isUnique)' # Note that this filter won't work if protocol.run_fastuniq is false
     # Filter 2: there is a bridge in the read, with last AG letters, it is not cut by the quality filter
     F2_goodBridge: '(start_hit_bridge_forward_R1<9999) & oligo_ga_at_35'
     # Filter 3: Reverse read starts with GGG

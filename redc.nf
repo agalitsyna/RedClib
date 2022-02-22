@@ -45,12 +45,12 @@ def protocol = params.getOrDefault('protocol', [:])
 def chunksize = protocol.getOrDefault('chunksize', 100000000000)
 def check_restriction = protocol.getOrDefault('check_restriction', false)
 def RenzymesPreloaded = Genome.getOrDefault('restricted', [:])
-def dedupMethod = protocol.getOrDefault('dedup_method', 'fastuniq')
+def runFastuniq = protocol.getOrDefault('run_fastuniq', false)
 
 // Check number of oligos, short oligos and fragments:
-nOligos = params.getOrDefault('oligos', [:]).keySet().size
-nShortOligos = params.getOrDefault('short_oligos', [:]).keySet().size
-nFragments = params.getOrDefault('fragments', [:]).keySet().size
+nOligos = params.getOrDefault('oligos', [:]).keySet().size()
+nShortOligos = params.getOrDefault('short_oligos', [:]).keySet().size()
+nFragments = params.getOrDefault('fragments', [:]).keySet().size()
 
 // Include modules and subworkflows
 include { INPUT_CHECK_DOWNLOAD } from './subworkflows/local/input_check' addParams( options: [:] )
@@ -73,12 +73,9 @@ include { GENOME_PREPARE_RNA_ANNOTATIONS } from './modules/local/genome_prepare_
 include { FASTQC } from './modules/nf-core/software/fastqc/main' addParams( options: [:] )
 include { FASTQ2TSV as TABLE_FASTQ2TSV } from './modules/local/fastq2table/main' addParams( options: [:] )
 
-if (dedupMethod=="fastuniq"){
+if (runFastuniq){
     include { DEDUP_FASTUNIQ as TABLE_DEDUP } from './subworkflows/local/dedup_fastuniq' addParams( options: [:] )
-}
-include { TRIMTABLE_CREATE as TABLE_TRIM } from './subworkflows/local/trimtable_create' addParams( options: [:] )
-
-include { RNADNATOOLS_TABLE_ALIGN as TABLE_DEDUP_ALIGN } from './modules/rnadnatools/table_align/main'  addParams( options: [
+    include { RNADNATOOLS_TABLE_ALIGN as TABLE_DEDUP_ALIGN } from './modules/rnadnatools/table_align/main'  addParams( options: [
                                                             args: [
                                                              input_format: 'tsv',
                                                              ref_format: 'parquet',
@@ -88,6 +85,10 @@ include { RNADNATOOLS_TABLE_ALIGN as TABLE_DEDUP_ALIGN } from './modules/rnadnat
                                                              params: '--no-input-header --key-column 0 --ref-colname readID \
                                                              --fill-values ".",0 --drop-key --new-colnames readID,isUnique'
                                                             ], suffix:'.fastuniq'] )
+}
+include { TRIMTABLE_CREATE as TABLE_TRIM } from './subworkflows/local/trimtable_create' addParams( options: [:] )
+
+
 
 include { OLIGOS_MAP } from './subworkflows/local/oligos_map' addParams( options: [:] )
 
@@ -273,20 +274,22 @@ workflow REDC {
     /* Deduplicate input sequences */
 
     // Run subworkflow that trims first basepairs of reads and runs fastuniq on them:
-    if (dedupMethod=="fastuniq"){
+    if (runFastuniq){
         FastuniqOut = TABLE_DEDUP( Fastq )
+
+        // Align deduplicated reads with read table
+        // (we want to guarantee the same order of reads in each table):
+        DedupAlignInput = Table.combine(FastuniqOut).filter{ it[0].original_id==it[2].id }
+                                    .multiMap{ it ->
+                                        reference: [ it[0], it[3] ]
+                                        table: [ it[0], it[1] ]
+                                    }
+        TableDedup = TABLE_DEDUP_ALIGN( DedupAlignInput ).table.map{ removeKeys(it, dedupKeys) }
+
     } else {
-        FastuniqOut = Channel.empty()
+        TableDedup = Channel.empty()
     }
 
-    // Align deduplicated reads with read table
-    // (we want to guarantee the same order of reads in each table):
-    DedupAlignInput = Table.combine(FastuniqOut).filter{ it[0].original_id==it[2].id }
-                                .multiMap{ it ->
-                                    reference: [ it[0], it[3] ]
-                                    table: [ it[0], it[1] ]
-                                }
-    TableDedup = TABLE_DEDUP_ALIGN( DedupAlignInput ).table.map{ removeKeys(it, dedupKeys) }
 
     /* Collect fragment columns data. */
     // params.fragments has the list of new columns with expressions that will be evaluated for each fragment
