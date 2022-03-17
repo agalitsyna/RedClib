@@ -43,7 +43,7 @@ process RKLIB_CHECK_COMPLEMENTARY {
     def table_cols_right = (meta_compl.right_side==1) ? " \$3, \$4" : "\$6, \$7"
 
     """
-    # Take the ends of reference oligos and get potentially complemetary regions:
+    # Take the ends of reference oligos and get potentially complementary regions:
 
     paste <(awk '{print \$1, ${table_cols_left}}' ${table} | tail -n +2) \\
           <(head -n -1 ${aligned_left} | tail -n +2 | awk '{print \$5}') \\

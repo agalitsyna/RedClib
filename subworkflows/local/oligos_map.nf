@@ -107,7 +107,9 @@ workflow OLIGOS_MAP {
                 .combine(HitsOligosStream)
                 .combine(HitsOligosStream)
                 .combine(ComplementaryInput)
-                .filter{meta, table, meta_reads, bin_reads, meta_oligos_left, aligned_left, meta_oligos_right, aligned_right, meta_compl ->
+                .filter{meta, table, meta_reads, bin_reads,
+                            meta_oligos_left, aligned_left,
+                            meta_oligos_right, aligned_right, meta_compl ->
                         (meta.id==meta_reads.id &&
                         meta.id==meta_oligos_left.id &&
                         meta.id==meta_oligos_right.id &&
@@ -115,8 +117,8 @@ workflow OLIGOS_MAP {
                         meta_oligos_right.oligo==meta_compl.right_reference_oligo)
                 }
                 .multiMap{meta, table, meta_reads, bin_reads,
-                        meta_oligos_left, aligned_left, meta_oligos_right, aligned_right,
-                        meta_compl ->
+                            meta_oligos_left, aligned_left,
+                            meta_oligos_right, aligned_right, meta_compl ->
                     input_table: [meta, table]
                     input_reads: [meta_reads, bin_reads]
                     input_oligos_left: [meta_oligos_left, aligned_left]

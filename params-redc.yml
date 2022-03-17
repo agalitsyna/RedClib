@@ -145,10 +145,12 @@ fragments:
         #extension_prefix: 'GA' # For cases when you want to add prefix
         extension_suffix: 'CATG' # Optional. Remove this parameter if you don't need DNA extension
         new_columns:
-            read_dna_start: 'np.where( (end_hit_adaptor_forward_R1!=99999), end_hit_adaptor_forward_R1, 0)'
-            read_dna_end: 'np.where( (start_hit_bridge_forward_R1<trim_R1), start_hit_bridge_forward_R1, trim_R1)'
+            # Note that you may use functions pick_positions and pick_largest/smallest defined in rnadnatools:
+            # Definition of these functions: https://github.com/agalitsyna/rnadnatools/blob/main/rnadnatools/lib/utils.py#L14
+            read_dna_start: 'pick_positions(end_hit_adaptor_forward_R1, 0)'
+            read_dna_end: 'pick_positions(start_hit_bridge_forward_R1, trim_R1, threshold=trim_R1)'
             read_dna_length: 'read_dna_end-read_dna_start'
-            read_dna_end_notrim: 'np.where( (start_hit_bridge_forward_R1!=99999), start_hit_bridge_forward_R1, rlen1)' # additional field for stats
+            read_dna_end_notrim: 'pick_positions(start_hit_bridge_forward_R1, rlen1)' # additional field for stats
             read_dna_length_notrim: 'read_dna_end_notrim-read_dna_start' # additional field for stats
         selection_criteria: 'read_dna_length>=14'
         mapping_args: '-k 10 --no-softclip --no-spliced-alignment'
@@ -156,11 +158,11 @@ fragments:
     rna1:
         side: 1
         new_columns:
-            read_rna1_start: 'np.where( (start_hit_bridge_forward_R1!=99999), start_hit_bridge_forward_R1+37, 0)'
+            read_rna1_start: 'pick_positions(start_hit_bridge_forward_R1+37, 0)'
             #read_rna1_start: 'np.array( [trim_R1, start_hit_bridge_forward_R1+37] ).min(axis=0)' # This setting will make more sense because it considers trimming
-            read_rna1_end: 'np.array( [trim_R1, end_hit_compl_R1, start_hit_adaptor_reverse_short_R1] ).min(axis=0)'
+            read_rna1_end: 'pick_smallest(trim_R1, end_hit_compl_R1, start_hit_adaptor_reverse_short_R1)'
             read_rna1_length: 'read_rna1_end-read_rna1_start'
-            read_rna1_end_notrim: 'np.array( [rlen1, end_hit_compl_R1, start_hit_adaptor_reverse_short_R1] ).min(axis=0)' # additional field for stats
+            read_rna1_end_notrim: 'pick_smallest(rlen1, end_hit_compl_R1, start_hit_adaptor_reverse_short_R1)' # additional field for stats
             read_rna1_length_notrim: 'read_rna1_end_notrim-read_rna1_start' # additional field for stats
         selection_criteria: 'read_rna1_length>=14'
         mapping_args: '-k 10 --no-softclip --dta-cufflinks --known-splicesite-infile'
@@ -170,11 +172,11 @@ fragments:
     rna2:
         side: 2
         new_columns:
-            read_rna2_start: 'np.maximum( np.where( (end_hit_ggg_R2!=99999), end_hit_ggg_R2, 0), np.where( (end_hit_adaptor_forward_r2_R2!=99999), end_hit_adaptor_forward_r2_R2, 0) )'
+            read_rna2_start: 'pick_largest( pick_positions(end_hit_ggg_R2, 0), pick_positions(end_hit_adaptor_forward_r2_R2, 0) )'
             #read_rna2_start: 'np.array( [trim_R2, np.maximum( np.where( (end_hit_ggg_R2!=99999), end_hit_ggg_R2, 0), np.where( (end_hit_adaptor_forward_r2_R2!=99999), end_hit_adaptor_forward_r2_R2, 0) )] ).min(axis=0)'
-            read_rna2_end: 'np.array( [trim_R2, start_hit_bridge_reverse_R2, end_hit_compl_R2] ).min(axis=0)'
+            read_rna2_end: 'pick_smallest(trim_R2, start_hit_bridge_reverse_R2, end_hit_compl_R2)'
             read_rna2_length: 'read_rna2_end-read_rna2_start'
-            read_rna2_end_notrim: 'np.array( [rlen2, start_hit_bridge_reverse_R2, end_hit_compl_R2] ).min(axis=0)' # additional field for stats
+            read_rna2_end_notrim: 'pick_smallest(rlen2, start_hit_bridge_reverse_R2, end_hit_compl_R2)' # additional field for stats
             read_rna2_length_notrim: 'read_rna2_end_notrim-read_rna2_start' # additional field for stats
         selection_criteria: 'read_rna2_length>=14'
         mapping_args: '-k 10 --no-softclip --dta-cufflinks --known-splicesite-infile'
@@ -214,6 +216,7 @@ filters:
     # No large deletions:
 
     # Pattern for filtering the relevant chromosomes:
+    # Note that you can use "match" function defined in rnadnatools for matching regular expressions:
     isCanonical: 'match(chrom_dna, "chr[0-9,X,Y]|chr[0-9][0-9]") & match(chrom_rna1, "chr[0-9,X,Y]|chr[0-9][0-9]") & match(chrom_rna2, "chr[0-9,X,Y]|chr[0-9][0-9]")'
 
     # RNA-DNA localization and orientation filters:
