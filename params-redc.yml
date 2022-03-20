@@ -1,4 +1,4 @@
-input: 'samplesheet_redc.csv' # required
+input: 'samplesheet_test.csv' # required
 cache: 'lenient'
 outdir: "output_redc/"
 enable_conda: true
@@ -106,6 +106,10 @@ oligos:
         expected_length: 16
         right_to_left: true # Search right-to-left (3'-5') instead of regular left-to-right (5'-3')
 
+# The output of "short_oligos" section will be added to the output stats as:
+# oligo_<title>_at_35
+# for example:
+# oligo_ga_at_35
 short_oligos:
     ga:
         sequence: 'GA'
@@ -120,13 +124,23 @@ short_oligos:
 #        position: 0
 #        side: 2
 
+# The output of the "complementary" section will be added to the output stats as:
+# start_hit_<title>_R1, end_hit_<title>_R1, start_hit_<title>_R2, end_hit_<title>_R2
+# for example:
+# start_hit_compl_R1, end_hit_compl_R1, start_hit_compl_R2, end_hit_compl_R2
 complementary:
-    length: 14
-    left_side: 1
-    left_reference_oligo: bridge_forward
-    right_side: 2
-    right_reference_oligo: ggg
-
+    compl:
+        length: 14
+        left_side: 1
+        left_reference_oligo: bridge_forward
+        right_side: 2
+        right_reference_oligo: ggg
+#    compl_additional:
+#        length: 8
+#        left_side: 1
+#        left_reference_oligo: bridge_forward
+#        right_side: 2
+#        right_reference_oligo: ggg
 
 fragments:
 #    dna_noext:

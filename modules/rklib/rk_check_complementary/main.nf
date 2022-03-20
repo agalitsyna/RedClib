@@ -7,7 +7,7 @@ options        = initOptions(params.options)
 def VERSION = '0.0'
 
 process RKLIB_CHECK_COMPLEMENTARY {
-    tag "$meta.id"
+    tag "$meta.id $meta_compl.id"
     label 'process_low'
     publishDir "${params.outdir}",
         mode: params.publish_dir_mode,
@@ -22,13 +22,14 @@ process RKLIB_CHECK_COMPLEMENTARY {
     val(meta_compl)
 
     output:
-    tuple val(meta), path("*.complHits.tsv"), emit: hits
+    tuple val(meta), path("*.tsv"), emit: hits
     path  "*.version.txt"         , emit: version
 
 
     script:
     def software = getSoftwareName(task.process)
     def prefix   = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
+    def complName = meta_compl.getOrDefault("id", "compl")
 
     def rna_compl_length = meta_compl.length as Integer
     def extraN = "N"*(500+3*rna_compl_length)
@@ -87,13 +88,17 @@ process RKLIB_CHECK_COMPLEMENTARY {
     # Merge two tabular outputs:
     # 1. Design header
     head -n 1 ${prefix}.hits_compl.R1.tsv \\
-     | sed 's/\\t/_compl_R1\\t/g' | sed 's/\$/_compl_R1/' | sed 's/#//g' | tr '\\n' '\\t' > ${prefix}.complHits.tsv
+     | sed 's/\\t/_${complName}_R1\\t/g' | sed 's/\$/_${complName}_R1/' | sed 's/#//g' | tr '\\n' '\\t' > ${prefix}.${complName}.tsv
     head -n 1 ${prefix}.hits_compl.R2.tsv \\
-     | sed 's/\\t/_compl_R2\\t/g' | sed 's/\$/_compl_R2/' | sed 's/#//g' | tr '\\n' '\\t' >> ${prefix}.complHits.tsv
-    sed -i "s/\\t\$/\\n/" ${prefix}.complHits.tsv
+     | sed 's/\\t/_${complName}_R2\\t/g' | sed 's/\$/_${complName}_R2/' | sed 's/#//g' | tr '\\n' '\\t' >> ${prefix}.${complName}.tsv
+    sed -i "s/\\t\$/\\n/" ${prefix}.${complName}.tsv
     # 2. Write to the body
     paste <(tail -n +2 ${prefix}.hits_compl.R1.tsv) \\
-        <(tail -n +2 ${prefix}.hits_compl.R2.tsv) >> ${prefix}.complHits.tsv
+        <(tail -n +2 ${prefix}.hits_compl.R2.tsv) >> ${prefix}.${complName}.tsv
+
+    # Remove temporary files:
+    rm ${prefix}.hits_compl.R1.tsv
+    rm ${prefix}.hits_compl.R2.tsv
 
     echo $VERSION > ${software}.version.txt
     """

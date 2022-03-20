@@ -100,7 +100,15 @@ workflow OLIGOS_MAP {
             HitsComplementary = Channel.empty()
         } else {
             /* Step 1: Collect information about left and right side of complementary regions */
-            ComplementaryInput = Channel.from(params.complementary)
+            ComplementaryInput  = Channel
+                           .from( params.complementary.keySet().withIndex() )
+                           .map { it, idx -> [it, idx, params.complementary[it]] } // meta for each complementary fragment
+                           .map { compl_name, idx, meta ->
+                                    meta.id = compl_name
+                                    meta.idx = idx
+                                    meta.single_end = true
+                                [meta]
+                           }.view()
 
             InputComplementary = TableChunks
                 .combine(IndexedFastqs)
